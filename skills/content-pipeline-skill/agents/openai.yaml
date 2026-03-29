@@ -1,0 +1,3 @@
+display_name: Content Pipeline
+short_description: Generate, preview, and draft articles
+default_prompt: Use this skill when the user wants to generate, rewrite, preview, import, or draft an article for WeChat or future publishing channels. Turn the request into Markdown-first content work inside content-ops-platform, render a theme preview when helpful, and create or track a reviewable draft task when appropriate.
