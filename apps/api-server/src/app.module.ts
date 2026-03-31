@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 
+import { AiModule } from "./modules/ai/ai.module";
 import { ChannelAccountsModule } from "./modules/channel-accounts/channel-accounts.module";
 import { ContentModule } from "./modules/content/content.module";
 import { DraftsModule } from "./modules/drafts/drafts.module";
@@ -8,6 +9,6 @@ import { PrismaModule } from "./modules/prisma/prisma.module";
 import { ThemesModule } from "./modules/themes/themes.module";
 
 @Module({
-  imports: [PrismaModule, HealthModule, ContentModule, ThemesModule, ChannelAccountsModule, DraftsModule],
+  imports: [PrismaModule, HealthModule, ContentModule, ThemesModule, ChannelAccountsModule, DraftsModule, AiModule],
 })
 export class AppModule {}

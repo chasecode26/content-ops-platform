@@ -1,55 +1,59 @@
 <template>
-  <n-space vertical size="large">
-    <n-card class="page-card" title="选择主题">
-      <div class="theme-grid">
-        <button
-          v-for="theme in themes"
-          :key="theme.code"
-          type="button"
-          class="theme-card"
-          :class="[`theme-${theme.code}`, { active: themeCode === theme.code }]"
-          @click="selectTheme(theme.code)"
-        >
-          <div class="theme-card__label">{{ theme.name }}</div>
-          <div class="theme-card__preview">
-            <div class="theme-card__kicker">Preview</div>
-            <div class="theme-card__title">内容排版示意</div>
-            <div class="theme-card__text">标题、正文、卡片边框与背景会随着主题切换。</div>
+  <div class="page-container themes-page">
+    <div class="page-scroll">
+      <n-space vertical size="large">
+        <n-card class="page-card" title="选择主题">
+          <div class="theme-grid">
+            <button
+              v-for="theme in themes"
+              :key="theme.code"
+              type="button"
+              class="theme-card"
+              :class="[`theme-${theme.code}`, { active: themeCode === theme.code }]"
+              @click="selectTheme(theme.code)"
+            >
+              <div class="theme-card__label">{{ theme.name }}</div>
+              <div class="theme-card__preview">
+                <div class="theme-card__kicker">Preview</div>
+                <div class="theme-card__title">内容排版示意</div>
+                <div class="theme-card__text">标题、正文、卡片边框与背景会随着主题切换。</div>
+              </div>
+            </button>
           </div>
-        </button>
-      </div>
-    </n-card>
+        </n-card>
 
-    <n-grid :x-gap="12" :y-gap="12" cols="1 l:2" responsive="screen">
-    <n-gi>
-      <n-card class="page-card" title="渲染参数">
-        <n-form label-placement="top">
-          <n-form-item label="当前主题">
-            <n-select v-model:value="themeCode" :options="themeOptions" />
-          </n-form-item>
-          <n-form-item label="标题">
-            <n-input v-model:value="title" />
-          </n-form-item>
-          <n-form-item label="Markdown">
-            <n-input v-model:value="markdownBody" type="textarea" :rows="14" />
-          </n-form-item>
-          <n-space>
-            <n-button type="primary" @click="preview">渲染预览</n-button>
-            <n-button secondary @click="copyHtml">复制 HTML</n-button>
-          </n-space>
-        </n-form>
-      </n-card>
-    </n-gi>
-    <n-gi>
-      <n-card class="page-card" title="HTML 预览">
-        <div class="preview-actions">
-          <n-tag type="info">长度 {{ html.length }} 字符</n-tag>
-        </div>
-        <div class="preview-box" v-html="html"></div>
-      </n-card>
-    </n-gi>
-    </n-grid>
-  </n-space>
+        <n-grid :x-gap="16" :y-gap="16" cols="1 l:2" responsive="screen">
+        <n-gi>
+          <n-card class="page-card" title="渲染参数">
+            <n-form label-placement="top">
+              <n-form-item label="当前主题">
+                <n-select v-model:value="themeCode" :options="themeOptions" />
+              </n-form-item>
+              <n-form-item label="标题">
+                <n-input v-model:value="title" />
+              </n-form-item>
+              <n-form-item label="Markdown">
+                <n-input v-model:value="markdownBody" type="textarea" :rows="14" />
+              </n-form-item>
+              <n-space>
+                <n-button type="primary" @click="preview">渲染预览</n-button>
+                <n-button secondary @click="copyHtml">复制 HTML</n-button>
+              </n-space>
+            </n-form>
+          </n-card>
+        </n-gi>
+        <n-gi>
+          <n-card class="page-card" title="HTML 预览">
+            <div class="preview-actions">
+              <n-tag type="info">长度 {{ html.length }} 字符</n-tag>
+            </div>
+            <div class="preview-box" v-html="html"></div>
+          </n-card>
+        </n-gi>
+        </n-grid>
+      </n-space>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -130,8 +134,8 @@ onMounted(async () => {
 }
 
 .theme-card.active {
-  border-color: #0f766e;
-  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+  border-color: #1e40af;
+  box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.12);
 }
 
 .theme-card__label {
@@ -168,13 +172,13 @@ onMounted(async () => {
 }
 
 .theme-wechat-tech-green .theme-card__preview {
-  background: linear-gradient(180deg, #ffffff 0%, #f2fff8 100%);
-  border: 1px solid #d9f7e8;
+  background: linear-gradient(180deg, #ffffff 0%, #eef4ff 100%);
+  border: 1px solid #d4e2fc;
   color: #2b2b2b;
 }
 
 .theme-wechat-tech-green .theme-card__kicker {
-  color: #07c160;
+  color: #1e40af;
 }
 
 .theme-wechat-tech-green .theme-card__title {

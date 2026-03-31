@@ -1,14 +1,14 @@
 # Content Ops Platform
 
-一个面向个人创作者与小团队的内容生产、排版与多平台分发系统。
+AI 驱动的多平台内容工作台 -- 以「母稿」为源，模板为型，聊天为口，发布为果。
 
-当前优先解决的问题：
+核心特征：
 
-- 将 Markdown 稿件稳定转换为统一风格的微信公众号 HTML
-- 支持主题化排版与草稿预览
-- 将文章自动推送到公众号草稿箱
-- 为后续接入小红书、抖音、今日头条预留统一的适配器层
-- 为后续接入自动抓取、AI 生成、定时发布预留完整工作流
+- **母稿机制** -- 一份母稿（Master Draft）是所有平台内容的唯一来源，支持 AI 改写与人工编辑双路径
+- **模板系统** -- 模板分「生成模板」（AI Prompt + 风格变体选择）和「渲染主题」（CSS + 排版规则），解耦内容与呈现
+- **聊天入口 + Web 确认** -- 支持 Skill/Agent 对话式创作快速出稿，保留 Web 控制台用于人工精校与批量管理
+- **平台派生** -- 从母稿按目标平台自动生成专属变体（小红书卡片、CSDN 博文、公众号图文等）
+- **草稿推送** -- 一键推送目标平台草稿，保留人工确认关口与失败重试
 
 ## 为什么存在
 
@@ -20,7 +20,7 @@
 
 这个项目的目标不是单纯做一个格式转换工具，而是建设一条完整的内容流水线：
 
-`输入内容 -> AI 优化 -> 主题渲染 -> 平台适配 -> 草稿推送/发布 -> 状态追踪`
+`聊天/导入 → 母稿生成 → AI 改写/人工编辑 → 母稿确认 → 平台派生 → 渲染主题 → 草稿推送/发布 → 状态追踪`
 
 ## 技术选型
 
@@ -38,6 +38,7 @@
 - 主系统统一使用 TypeScript，降低维护复杂度
 - 平台接入统一走 Adapter 模式，避免业务逻辑被平台细节污染
 - 小红书初期允许通过独立浏览器自动化桥接服务接入
+- 生成模板与渲染主题解耦，各自独立演进
 
 ## 目录结构
 
@@ -61,25 +62,26 @@ content-ops-platform/
 │   │   └── src/
 │   ├── render-engine/
 │   │   └── src/
-│   └── workflow-kernel/
+│   ├── workflow-kernel/
+│   │   └── src/
+│   ├── ai-orchestrator/
+│   │   └── src/
+│   ├── template-engine/
+│   │   └── src/
+│   └── platform-variant-service/
 │       └── src/
 ├── prisma/
 │   └── schema.prisma
-├── docs/
-│   ├── database-schema.md
-│   ├── module-breakdown.md
-│   ├── adapters.md
-│   └── roadmap.md
-└── tests/
+└── docs/
 ```
 
 ## 核心职责
 
 这个系统要做的：
 
-- 统一管理内容、主题、平台账号和发布任务
-- 对 Markdown 输入进行结构化处理
-- 支持按主题渲染为公众号 HTML
+- 统一管理母稿、模板、平台账号和发布任务
+- 母稿作为所有平台内容的唯一来源，支持多版本快照
+- 通过生成模板和渲染主题的拆分，解耦内容风格与视觉排版
 - 对接不同平台的草稿与发布流程
 - 记录每一次内容生成、渲染与发布的执行状态
 
@@ -96,11 +98,12 @@ content-ops-platform/
 - [docs/database-schema.md](./docs/database-schema.md)：数据模型与表结构设计
 - [docs/module-breakdown.md](./docs/module-breakdown.md)：模块拆分与职责边界
 - [docs/adapters.md](./docs/adapters.md)：适配器接口与平台差异定义
+- [docs/web-console-ui-design.md](./docs/web-console-ui-design.md)：Web 控制台 UI 设计
 - [docs/roadmap.md](./docs/roadmap.md)：MVP 到多平台演进路线
 - [docs/implementation-plan.md](./docs/implementation-plan.md)：接口级、页面级、表级开发清单
 - [docs/api-spec.md](./docs/api-spec.md)：MVP API 设计与错误码规范
 
-## 本地启动（API + Prisma）
+## 本地启动
 
 前置：
 
@@ -142,30 +145,6 @@ pnpm dev:local
 - `db:seed`
 - 启动 API
 
-微信草稿适配器模式：
-
-- `WECHAT_DRAFT_ADAPTER=fake`：本地 mock（默认，稳定可跑）
-- `WECHAT_DRAFT_ADAPTER=api`：调用微信 `token + draft/add` 最小链路
-
-`api` 模式下渠道账号要求：
-
-- `credentials.appId`
-- `credentials.appSecret`
-- `meta.defaultThumbMediaId`（可选，若不填将自动上传内置封面图）
-- `meta.author`（可选）
-
-如果你已完成迁移，只想快速启动，可用：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run-local.ps1 -SkipDbDeploy
-```
-
-接口冒烟（自动启动 API 并执行导入/预览/草稿链路）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\smoke-api.ps1
-```
-
 常用脚本（根目录）：
 
 - `pnpm db:generate`：生成 Prisma Client
@@ -183,16 +162,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke-api.ps1
 
 MVP 仅覆盖：
 
-- 本地导入 Markdown
-- 选择排版主题
-- 生成微信公众号 HTML 预览
+- 母稿创建（导入 Markdown 或聊天入口 AI 生成）
+- 母稿确认与版本管理
+- 选择渲染主题生成微信公众号 HTML 预览
 - 自动推送至公众号草稿箱
 - 保存推送记录与失败日志
 
 ## 后续方向
 
-- URL/RSS/关键词抓取
-- AI 自动生成初稿与多平台改写
-- 小红书自动发布桥接
-- 抖音图文/视频内容适配
-- 多账号定时发布与数据回收
+- 生成模板系统（AI Prompt + 变体矩阵）
+- 平台派生版本（小红书 / CSDN / 抖音）
+- 一稿多发 + 任务编排
+- 聊天入口完整打通
+- 数据回收与效果追踪

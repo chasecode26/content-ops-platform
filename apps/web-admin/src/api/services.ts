@@ -217,3 +217,19 @@ export async function retryDraft(publishJobId: string) {
   );
   return data.data;
 }
+
+export async function generateArticle(prompt: string) {
+  const { data } = await api.post<ApiEnvelope<{ title: string; summary: string; markdownBody: string }>>(
+    "/ai/generate-article",
+    { prompt },
+  );
+  return data.data;
+}
+
+export async function aiChat(message: string, conversationHistory?: string) {
+  const { data } = await api.post<ApiEnvelope<{ reply: string }>>(
+    "/ai/chat",
+    { message, conversationHistory },
+  );
+  return data.data;
+}
