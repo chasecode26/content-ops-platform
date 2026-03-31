@@ -99,4 +99,88 @@ export class AiService {
   async chatMessage(messages: { role: string; content: string }[]): Promise<string> {
     return this.chat(messages);
   }
+
+  async generateVariant(platform: string, sourceMarkdown: string, sourceTitle: string): Promise<{
+    title: string;
+    markdownBody: string;
+    tags?: string[];
+  }> {
+    const prompts: Record<string, string> = {
+      XIAOHONGSHU: `你是一个小红书爆款文案专家。请将以下母稿改写成小红书风格的笔记。
+
+小红书风格要求：
+1. 标题：吸引眼球，使用 emoji，制造悬念或痛点共鸣，15-20 字
+2. 正文：
+   - 开头用痛点/悬念/共鸣吸引注意
+   - 多用 emoji（但不过度），每段 2-3 行
+   - 使用序号列表、分隔线等增强可读性
+   - 口语化、亲切感，像朋友分享
+   - 适当使用"姐妹们"、"真的绝了"、"按头安利"等网感词汇
+   - 结尾引导互动（点赞、收藏、评论）
+3. 标签：生成 5-8 个相关话题标签，用 # 开头
+
+请严格按照以下 JSON 格式返回，不要包含任何其他文字：
+{
+  "title": "小红书标题（带emoji）",
+  "markdownBody": "小红书风格正文（用 Markdown 格式）",
+  "tags": ["#标签1", "#标签2", "#标签3"]
+}
+
+源文章：
+标题：${sourceTitle}
+内容：${sourceMarkdown.substring(0, 3000)}`,
+      CSDN: `你是一个资深技术博主。请将以下母稿改写成 CSDN 风格的技术文章。
+
+CSDN 风格要求：
+1. 标题：专业、准确、包含关键词，便于搜索引擎优化
+2. 正文：
+   - 结构清晰：前言、环境/背景、核心内容（分步骤）、总结
+   - 使用代码块、表格、列表等技术文档常用元素
+   - 语言专业严谨，适合技术人员阅读
+   - 适当添加"踩坑记录"、"注意事项"、"扩展阅读"等板块
+   - 结尾可以引导关注、点赞、收藏
+3. 标签：生成 5-8 个技术相关标签
+
+请严格按照以下 JSON 格式返回，不要包含任何其他文字：
+{
+  "title": "CSDN文章标题",
+  "markdownBody": "CSDN风格正文（用 Markdown 格式）",
+  "tags": ["标签1", "标签2", "标签3"]
+}
+
+源文章：
+标题：${sourceTitle}
+内容：${sourceMarkdown.substring(0, 3000)}`,
+    };
+
+    const systemPrompt = prompts[platform];
+    if (!systemPrompt) {
+      throw new Error(`不支持的平台: ${platform}`);
+    }
+
+    const response = await this.chat([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `请将以下文章改写成${platform === "XIAOHONGSHU" ? "小红书" : "CSDN"}风格` },
+    ]);
+
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          title: parsed.title ?? `${platform} 变体`,
+          markdownBody: parsed.markdownBody ?? response,
+          tags: parsed.tags ?? [],
+        };
+      }
+    } catch (e) {
+      this.logger.warn("Failed to parse variant response as JSON");
+    }
+
+    return {
+      title: `${platform} 变体`,
+      markdownBody: response,
+      tags: [],
+    };
+  }
 }

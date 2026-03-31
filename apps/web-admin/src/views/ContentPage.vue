@@ -76,6 +76,47 @@
           </n-space>
         </n-form>
       </n-modal>
+
+      <n-modal v-model:show="openVariant" preset="card" title="生成多平台变体" style="width: 900px; max-width: 96vw;">
+        <n-space vertical>
+          <n-space>
+            <n-select
+              v-model:value="variantPlatform"
+              :options="platformOptions"
+              style="width: 200px"
+              placeholder="选择平台"
+            />
+            <n-button type="primary" :loading="generating" @click="doGenerateVariant">
+              {{ generating ? '生成中...' : '生成' }}
+            </n-button>
+          </n-space>
+
+          <n-tabs v-if="variantResult" type="line" animated>
+            <n-tab-pane name="preview" tab="预览">
+              <div class="variant-preview-box">
+                <h3>{{ variantResult.title }}</h3>
+                <div v-if="variantResult.tags?.length" class="variant-tags">
+                  <n-tag v-for="tag in variantResult.tags" :key="tag" size="small" type="info">{{ tag }}</n-tag>
+                </div>
+                <div class="variant-markdown" v-html="formatMarkdown(variantResult.markdownBody)"></div>
+              </div>
+            </n-tab-pane>
+            <n-tab-pane name="raw" tab="原始 Markdown">
+              <n-input
+                v-model:value="variantResult.markdownBody"
+                type="textarea"
+                :rows="16"
+                style="font-family: monospace"
+              />
+            </n-tab-pane>
+          </n-tabs>
+
+          <n-space v-if="variantResult" justify="end">
+            <n-button secondary @click="copyVariantText">复制文本</n-button>
+            <n-button type="primary" @click="saveVariantAsContent">保存为新母稿</n-button>
+          </n-space>
+        </n-space>
+      </n-modal>
     </div>
   </div>
 </template>
@@ -87,6 +128,7 @@ import { NButton, NTag, useMessage } from "naive-ui";
 import {
   createContentVersion,
   getContentById,
+  generateVariant,
   importMarkdown,
   listContents,
   type ContentDetail,
@@ -100,6 +142,15 @@ const total = ref(0);
 const detail = ref<ContentDetail | null>(null);
 const selectedVersionId = ref("");
 const openImport = ref(false);
+const openVariant = ref(false);
+const generating = ref(false);
+const variantPlatform = ref("XIAOHONGSHU");
+const variantResult = ref<{ title: string; markdownBody: string; tags?: string[] } | null>(null);
+
+const platformOptions = [
+  { label: "📕 小红书", value: "XIAOHONGSHU" },
+  { label: "💻 CSDN", value: "CSDN" },
+];
 
 const query = reactive({
   page: 1,
@@ -149,6 +200,23 @@ const columns = [
   },
   { title: "版本", key: "latestVersionNo", render: (row: ContentItem) => `v${row.latestVersionNo ?? 1}` },
   { title: "更新时间", key: "updatedAt" },
+  {
+    title: "操作",
+    key: "actions",
+    render: (row: ContentItem) =>
+      h("div", { style: "display:flex;gap:6px;" }, [
+        h(
+          NButton,
+          {
+            size: "small",
+            type: "warning",
+            secondary: true,
+            onClick: () => void openVariantModal(row.id),
+          },
+          { default: () => "多平台变体" },
+        ),
+      ]),
+  },
 ];
 
 const versionOptions = computed(() =>
@@ -241,6 +309,74 @@ async function submitVersion() {
   await refresh();
 }
 
+function openVariantModal(contentId: string) {
+  void loadDetail(contentId);
+  variantResult.value = null;
+  openVariant.value = true;
+}
+
+async function doGenerateVariant() {
+  if (!detail.value) {
+    message.warning("请先选择一篇内容");
+    return;
+  }
+  const markdown = versionForm.markdownBody || detail.value.latestVersion?.markdownBody;
+  if (!markdown) {
+    message.warning("当前版本没有正文内容");
+    return;
+  }
+  generating.value = true;
+  try {
+    variantResult.value = await generateVariant(
+      variantPlatform.value,
+      markdown,
+      versionForm.title || detail.value.title,
+    );
+    message.success("变体生成完成");
+  } catch (err: any) {
+    message.error("生成失败：" + (err.message || "未知错误"));
+  } finally {
+    generating.value = false;
+  }
+}
+
+async function copyVariantText() {
+  if (!variantResult.value) return;
+  const text = `# ${variantResult.value.title}\n\n${variantResult.value.markdownBody}`;
+  await navigator.clipboard.writeText(text);
+  message.success("已复制到剪贴板");
+}
+
+async function saveVariantAsContent() {
+  if (!variantResult.value) return;
+  try {
+    const res = await importMarkdown({
+      title: variantResult.value.title,
+      summary: `${variantPlatform.value} 变体`,
+      markdownBody: variantResult.value.markdownBody,
+      tags: variantResult.value.tags,
+    });
+    message.success("已保存为新母稿");
+    openVariant.value = false;
+    await refresh();
+    await loadDetail(res.contentId);
+  } catch (err: any) {
+    message.error("保存失败：" + (err.message || "未知错误"));
+  }
+}
+
+function formatMarkdown(text: string) {
+  return text
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/^\- (.+)$/gm, '<li>$1</li>')
+    .replace(/\n/g, '<br>');
+}
+
 onMounted(async () => {
   await refresh();
   if (contentRows.value.length > 0) {
@@ -248,3 +384,47 @@ onMounted(async () => {
   }
 });
 </script>
+
+<style scoped>
+.variant-preview-box {
+  padding: 16px;
+  background: #fafbfc;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.variant-preview-box h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: #303133;
+}
+
+.variant-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.variant-markdown {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #606266;
+}
+
+.variant-markdown :deep(h2),
+.variant-markdown :deep(h3),
+.variant-markdown :deep(h4) {
+  margin: 16px 0 8px;
+  color: #303133;
+}
+
+.variant-markdown :deep(code) {
+  background: #f0f2f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+</style>

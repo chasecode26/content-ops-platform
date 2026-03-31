@@ -57,6 +57,7 @@ const menuOptions: MenuOption[] = [
   { key: "/themes", label: "主题预览" },
   { key: "/accounts", label: "账号管理" },
   { key: "/drafts", label: "草稿任务" },
+  { key: "/settings", label: "AI 配置" },
 ];
 
 const activeKey = computed(() => route.path);
@@ -66,6 +67,7 @@ const titles: Record<string, string> = {
   "/themes": "主题预览",
   "/accounts": "账号管理",
   "/drafts": "草稿任务",
+  "/settings": "AI 配置",
 };
 const pageTitle = computed(() => titles[route.path] ?? "Content Ops");
 

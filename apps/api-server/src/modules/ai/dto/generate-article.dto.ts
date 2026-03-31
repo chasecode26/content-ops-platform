@@ -15,3 +15,17 @@ export class ChatMessageDto {
   @IsString()
   conversationHistory?: string;
 }
+
+export class GenerateVariantDto {
+  @IsNotEmpty()
+  @IsString()
+  platform!: string;
+
+  @IsNotEmpty()
+  @IsString()
+  sourceMarkdown!: string;
+
+  @IsOptional()
+  @IsString()
+  sourceTitle?: string;
+}

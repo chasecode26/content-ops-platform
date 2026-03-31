@@ -233,3 +233,11 @@ export async function aiChat(message: string, conversationHistory?: string) {
   );
   return data.data;
 }
+
+export async function generateVariant(platform: string, sourceMarkdown: string, sourceTitle?: string) {
+  const { data } = await api.post<ApiEnvelope<{ title: string; markdownBody: string; tags?: string[] }>>(
+    "/ai/generate-variant",
+    { platform, sourceMarkdown, sourceTitle },
+  );
+  return data.data;
+}

@@ -1,7 +1,7 @@
 import { Body, Controller, Post } from "@nestjs/common";
 import { ok } from "../../common/http-response";
 import { AiService } from "./ai.service";
-import { GenerateArticleDto, ChatMessageDto } from "./dto/generate-article.dto";
+import { GenerateArticleDto, ChatMessageDto, GenerateVariantDto } from "./dto/generate-article.dto";
 
 @Controller("ai")
 export class AiController {
@@ -45,5 +45,15 @@ export class AiController {
 
     const reply = await this.aiService.chatMessage(messages);
     return ok({ reply });
+  }
+
+  @Post("generate-variant")
+  async generateVariant(@Body() dto: GenerateVariantDto) {
+    const result = await this.aiService.generateVariant(
+      dto.platform,
+      dto.sourceMarkdown,
+      dto.sourceTitle ?? "",
+    );
+    return ok(result);
   }
 }

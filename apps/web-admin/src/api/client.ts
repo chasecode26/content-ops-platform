@@ -4,7 +4,7 @@ const baseURL = import.meta.env.VITE_API_BASE ?? "/api";
 
 export const api = axios.create({
   baseURL,
-  timeout: 15000,
+  timeout: 120000,
   headers: {
     "x-user-id": "user_local_default",
   },
