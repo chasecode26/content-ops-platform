@@ -1,53 +1,49 @@
 <template>
   <div class="page-container drafts-page">
     <div class="page-scroll">
-      <n-grid :x-gap="16" :y-gap="16" cols="1 l:2" responsive="screen">
-        <n-gi>
-          <n-card class="page-card" title="新建草稿任务">
-            <n-form label-placement="top">
-              <n-form-item label="内容">
-                <n-select v-model:value="form.contentId" :options="contentOptions" @update:value="onContentChange" />
-              </n-form-item>
-              <n-form-item label="版本">
-                <n-select v-model:value="form.versionId" :options="versionOptions" placeholder="选择版本" />
-              </n-form-item>
-              <n-form-item label="账号">
-                <n-select v-model:value="form.channelAccountId" :options="accountOptions" />
-              </n-form-item>
-              <n-form-item label="主题">
-                <n-select v-model:value="form.themeCode" :options="themeOptions" />
-              </n-form-item>
-              <n-button type="primary" @click="submit">推送草稿</n-button>
-            </n-form>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card class="page-card" title="草稿任务列表">
-            <n-space vertical>
-              <n-space>
-                <n-select
-                  v-model:value="query.status"
-                  :options="statusOptions"
-                  clearable
-                  placeholder="按状态筛选"
-                  style="width: 200px"
-                />
-                <n-button secondary @click="refresh">查询</n-button>
-              </n-space>
-              <n-data-table :columns="columns" :data="drafts" :pagination="false" />
-              <n-pagination
-                v-model:page="query.page"
-                v-model:page-size="query.pageSize"
-                :item-count="total"
-                show-size-picker
-                :page-sizes="[10, 20, 50]"
-                @update:page="refresh"
-                @update:page-size="refresh"
+      <div class="page-split-grid">
+        <n-card class="page-card" title="新建草稿任务">
+          <n-form label-placement="top">
+            <n-form-item label="内容">
+              <n-select v-model:value="form.contentId" :options="contentOptions" @update:value="onContentChange" />
+            </n-form-item>
+            <n-form-item label="版本">
+              <n-select v-model:value="form.versionId" :options="versionOptions" placeholder="选择版本" />
+            </n-form-item>
+            <n-form-item label="账号">
+              <n-select v-model:value="form.channelAccountId" :options="accountOptions" />
+            </n-form-item>
+            <n-form-item label="主题">
+              <n-select v-model:value="form.themeCode" :options="themeOptions" />
+            </n-form-item>
+            <n-button type="primary" @click="submit">推送草稿</n-button>
+          </n-form>
+        </n-card>
+        <n-card class="page-card" title="草稿任务列表">
+          <n-space vertical>
+            <n-space>
+              <n-select
+                v-model:value="query.status"
+                :options="statusOptions"
+                clearable
+                placeholder="按状态筛选"
+                style="width: 200px"
               />
+              <n-button secondary @click="refresh">查询</n-button>
             </n-space>
-          </n-card>
-        </n-gi>
-      </n-grid>
+            <n-data-table :columns="columns" :data="drafts" :pagination="false" />
+            <n-pagination
+              v-model:page="query.page"
+              v-model:page-size="query.pageSize"
+              :item-count="total"
+              show-size-picker
+              :page-sizes="[10, 20, 50]"
+              @update:page="refresh"
+              @update:page-size="refresh"
+            />
+          </n-space>
+        </n-card>
+      </div>
 
       <n-drawer v-model:show="showDetail" :width="460" placement="right">
         <n-drawer-content title="任务详情">

@@ -1,40 +1,36 @@
 <template>
   <div class="page-container accounts-page">
     <div class="page-scroll">
-      <n-grid :x-gap="16" :y-gap="16" cols="1 l:2" responsive="screen">
-        <n-gi>
-          <n-card class="page-card" title="新增公众号账号">
-            <n-form label-placement="top">
-              <n-form-item label="账号名称">
-                <n-input v-model:value="createForm.name" />
-              </n-form-item>
-              <n-form-item label="appId">
-                <n-input v-model:value="createForm.appId" />
-              </n-form-item>
-              <n-form-item label="appSecret">
-                <n-input v-model:value="createForm.appSecret" type="password" show-password-on="click" />
-              </n-form-item>
-              <n-form-item label="作者名">
-                <n-input v-model:value="createForm.author" />
-              </n-form-item>
-              <n-form-item label="thumb_media_id">
-                <n-input v-model:value="createForm.defaultThumbMediaId" placeholder="可选，不填则自动上传兜底图" />
-              </n-form-item>
-              <n-button type="primary" @click="submitCreate">保存账号</n-button>
-            </n-form>
-          </n-card>
-        </n-gi>
-        <n-gi>
-          <n-card class="page-card" title="账号列表（密文存储 / 脱敏展示）">
-            <n-space vertical>
-              <n-space>
-                <n-button secondary @click="refresh">刷新</n-button>
-              </n-space>
-              <n-data-table :columns="columns" :data="accounts" :pagination="false" />
+      <div class="page-split-grid">
+        <n-card class="page-card" title="新增公众号账号">
+          <n-form label-placement="top">
+            <n-form-item label="账号名称">
+              <n-input v-model:value="createForm.name" />
+            </n-form-item>
+            <n-form-item label="appId">
+              <n-input v-model:value="createForm.appId" />
+            </n-form-item>
+            <n-form-item label="appSecret">
+              <n-input v-model:value="createForm.appSecret" type="password" show-password-on="click" />
+            </n-form-item>
+            <n-form-item label="作者名">
+              <n-input v-model:value="createForm.author" />
+            </n-form-item>
+            <n-form-item label="thumb_media_id">
+              <n-input v-model:value="createForm.defaultThumbMediaId" placeholder="可选，不填则自动上传兜底图" />
+            </n-form-item>
+            <n-button type="primary" @click="submitCreate">保存账号</n-button>
+          </n-form>
+        </n-card>
+        <n-card class="page-card" title="账号列表（密文存储 / 脱敏展示）">
+          <n-space vertical>
+            <n-space>
+              <n-button secondary @click="refresh">刷新</n-button>
             </n-space>
-          </n-card>
-        </n-gi>
-      </n-grid>
+            <n-data-table :columns="columns" :data="accounts" :pagination="false" />
+          </n-space>
+        </n-card>
+      </div>
 
       <n-modal v-model:show="showEdit" preset="card" title="编辑账号" style="width: 680px; max-width: 96vw;">
         <n-form label-placement="top">

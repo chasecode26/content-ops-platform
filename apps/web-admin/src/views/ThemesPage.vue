@@ -22,8 +22,7 @@
           </div>
         </n-card>
 
-        <n-grid :x-gap="16" :y-gap="16" cols="1 l:2" responsive="screen">
-        <n-gi>
+        <div class="page-split-grid">
           <n-card class="page-card" title="渲染参数">
             <n-form label-placement="top">
               <n-form-item label="当前主题">
@@ -41,16 +40,13 @@
               </n-space>
             </n-form>
           </n-card>
-        </n-gi>
-        <n-gi>
           <n-card class="page-card" title="HTML 预览">
             <div class="preview-actions">
               <n-tag type="info">长度 {{ html.length }} 字符</n-tag>
             </div>
             <div class="preview-box" v-html="html"></div>
           </n-card>
-        </n-gi>
-        </n-grid>
+        </div>
       </n-space>
     </div>
   </div>

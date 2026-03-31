@@ -35,13 +35,18 @@ html, body {
 }
 
 .main-layout {
+  height: 100%;
+}
+
+.main-layout > .n-layout-scroll-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%;
 }
 
 .main-content {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -116,6 +121,33 @@ html, body {
   min-height: 0;
 }
 
+.page-split-grid {
+  --page-split-gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--page-split-gap);
+  min-height: 100%;
+  align-items: stretch;
+}
+
+.page-split-grid > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+.page-split-grid > .page-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.page-split-grid > .page-card .n-card__content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
 .grid-cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -187,6 +219,9 @@ html, body {
   .page-container {
     max-width: 100%;
     padding: 16px 20px;
+  }
+  .page-split-grid {
+    grid-template-columns: 1fr;
   }
   .grid-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
