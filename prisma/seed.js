@@ -1,4 +1,4 @@
-require("dotenv/config");
+﻿require("dotenv/config");
 
 const { PlatformCode, PrismaClient } = require("@prisma/client");
 
@@ -18,19 +18,22 @@ async function main() {
   const themes = [
     {
       code: "wechat-tech-green",
-      name: "科技简约风",
+      name: "科技蓝卡片风",
       targetPlatform: PlatformCode.WECHAT_OFFICIAL,
-      version: 1,
+      version: 2,
       tokens: {
-        primaryColor: "#07c160",
+        primaryColor: "#1d4ed8",
+        accentColor: "#0f3d91",
         headingColor: "#0f172a",
-        textColor: "#2b2b2b",
+        textColor: "#1f2937",
         backgroundColor: "#ffffff",
-        borderColor: "#d9f7e8",
+        surfaceColor: "#f7fbff",
+        softBackground: "#e8f1ff",
+        borderColor: "#d9e7ff",
+        mutedColor: "#5b6472",
+        codeBackground: "#0f172a",
       },
-      template: {
-        layout: "card",
-      },
+      template: { layout: "hero-card" },
       isActive: true,
     },
     {
@@ -44,10 +47,10 @@ async function main() {
         textColor: "#303133",
         backgroundColor: "#ffffff",
         borderColor: "#ececec",
+        mutedColor: "#6b7280",
+        codeBackground: "#f8f8f8",
       },
-      template: {
-        layout: "minimal",
-      },
+      template: { layout: "minimal" },
       isActive: true,
     },
     {
@@ -61,10 +64,30 @@ async function main() {
         textColor: "#dbe4ee",
         backgroundColor: "#0f172a",
         borderColor: "#1e293b",
+        mutedColor: "#94a3b8",
+        codeBackground: "#111827",
       },
-      template: {
-        layout: "column-dark",
+      template: { layout: "column-dark" },
+      isActive: true,
+    },
+    {
+      code: "wechat-superpowers-green",
+      name: "森绿长文风",
+      targetPlatform: PlatformCode.WECHAT_OFFICIAL,
+      version: 1,
+      tokens: {
+        primaryColor: "#07c160",
+        accentColor: "#06ad56",
+        headingColor: "#11703f",
+        textColor: "#111111",
+        backgroundColor: "#ffffff",
+        surfaceColor: "#f8fff9",
+        softBackground: "#e8f7f0",
+        borderColor: "#cfeedd",
+        mutedColor: "#5f6b63",
+        codeBackground: "#0b1020",
       },
+      template: { layout: "superpowers-green" },
       isActive: true,
     },
   ];
@@ -74,6 +97,7 @@ async function main() {
       where: { code: theme.code },
       update: {
         name: theme.name,
+        version: theme.version,
         tokens: theme.tokens,
         template: theme.template,
         isActive: theme.isActive,
@@ -102,15 +126,9 @@ async function main() {
     },
   });
 
-  const account = await prisma.channelAccount.findUnique({
-    where: { id: "account_local_wechat" },
-  });
-  const techGreen = await prisma.theme.findUnique({
-    where: { code: "wechat-tech-green" },
-  });
-  const minimalLight = await prisma.theme.findUnique({
-    where: { code: "wechat-minimal-light" },
-  });
+  const account = await prisma.channelAccount.findUnique({ where: { id: "account_local_wechat" } });
+  const techGreen = await prisma.theme.findUnique({ where: { code: "wechat-tech-green" } });
+  const minimalLight = await prisma.theme.findUnique({ where: { code: "wechat-minimal-light" } });
 
   const sampleContents = [
     {
@@ -121,29 +139,7 @@ async function main() {
       status: "APPROVED",
       tags: ["AI", "内容创作"],
       versionNo: 2,
-      markdownBody: `# 如何用 AI 提升内容创作效率
-
-在内容创作领域，AI 正在改变我们的工作方式。
-
-## 1. 选题与调研
-
-利用 AI 快速分析热点话题和受众偏好，找到最佳切入点。
-
-## 2. 大纲生成
-
-通过对话式交互，让 AI 帮你梳理文章结构和逻辑脉络。
-
-## 3. 初稿撰写
-
-AI 可以根据大纲快速生成初稿，大幅缩短写作时间。
-
-## 4. 润色与优化
-
-最后阶段，人工精修 AI 生成内容，确保质量和风格统一。
-
----
-
-*AI 不是替代创作者，而是放大创作者的能力边界。*`,
+      markdownBody: `# 如何用 AI 提升内容创作效率\n\n在内容创作这件事上，AI 已经不是锦上添花，而是能真正缩短准备时间的生产工具。\n\n## 1. 选题和拆解\n\n先用 AI 快速列出用户关心的问题，再反向拆出文章骨架。\n\n## 2. 初稿生成\n\n把核心观点、案例、语气要求一次交给模型，让它先给你一个可以编辑的草稿。\n\n> 不要把 AI 当成代写机，更适合把它当成高响应的协作编辑。\n\n## 3. 二次润色\n\n把你的经验、数据和真实观察补进去，文章就会从“能看”变成“可信”。`,
     },
     {
       id: "content_sample_002",
@@ -153,67 +149,7 @@ AI 可以根据大纲快速生成初稿，大幅缩短写作时间。
       status: "READY_FOR_REVIEW",
       tags: ["微信", "排版"],
       versionNo: 1,
-      markdownBody: `# 微信公众号排版最佳实践
-
-好的排版能让文章阅读体验提升一个档次。
-
-## 为什么排版重要
-
-- 提升阅读完成率
-- 增强品牌专业感
-- 降低视觉疲劳
-
-## 排版原则
-
-### 留白
-
-适当的行间距和段间距让内容呼吸。
-
-### 色彩
-
-主色不超过三种，保持视觉统一。
-
-### 层级
-
-标题层级清晰，读者能快速定位感兴趣的内容。
-
-## 工具推荐
-
-使用 Markdown + 渲染主题的方式，可以一键生成高质量排版。`,
-    },
-    {
-      id: "content_sample_003",
-      title: "2026 年内容运营趋势",
-      summary: "多平台分发、数据驱动、AI 辅助",
-      slug: "content-trends-2026",
-      status: "DRAFT",
-      tags: ["趋势", "运营"],
-      versionNo: 1,
-      markdownBody: `# 2026 年内容运营趋势
-
-内容行业正在经历深刻变革。
-
-## 关键趋势
-
-### 一稿多发
-
-从单一平台到全平台分发，内容利用率大幅提升。
-
-### 数据驱动
-
-通过数据分析指导选题和发布策略。
-
-### AI 辅助创作
-
-AI 在选题、写作、排版、分发各环节发挥作用。
-
-### 私域运营
-
-公众号、小程序、社群形成闭环。
-
----
-
-*把握趋势，才能在内容赛道保持竞争力。*`,
+      markdownBody: `# 微信公众号排版最佳实践\n\n好的排版会让内容显得更稳，也更容易被读完。\n\n## 留白\n\n段落、模块和标题之间要有呼吸感，别把内容压成一堵墙。\n\n## 层级\n\n标题、正文、引用、代码块都要有清晰分工，读者才能快速扫读。\n\n## 风格统一\n\n颜色、圆角、边框、标签语气要统一，不然会像拼装页面。`,
     },
   ];
 
@@ -242,13 +178,6 @@ AI 在选题、写作、排版、分发各环节发挥作用。
     });
   }
 
-  const content1 = await prisma.contentItem.findUnique({
-    where: { id: "content_sample_001" },
-  });
-  const content2 = await prisma.contentItem.findUnique({
-    where: { id: "content_sample_002" },
-  });
-
   const sampleDrafts = [
     {
       id: "draft_sample_001",
@@ -271,49 +200,7 @@ AI 在选题、写作、排版、分发各环节发挥作用。
   ];
 
   for (const d of sampleDrafts) {
-    await prisma.draftRecord.upsert({
-      where: { id: d.id },
-      update: {},
-      create: d,
-    });
-  }
-
-  const sampleJobs = [
-    {
-      id: "job_sample_001",
-      contentItemId: "content_sample_001",
-      channelAccountId: account.id,
-      status: "DRAFTED",
-      startedAt: new Date(Date.now() - 3600000),
-      finishedAt: new Date(Date.now() - 1800000),
-      attemptCount: 1,
-    },
-    {
-      id: "job_sample_002",
-      contentItemId: "content_sample_002",
-      channelAccountId: account.id,
-      status: "PUSHING",
-      startedAt: new Date(Date.now() - 600000),
-      attemptCount: 1,
-    },
-    {
-      id: "job_sample_003",
-      contentItemId: "content_sample_001",
-      channelAccountId: account.id,
-      status: "FAILED",
-      startedAt: new Date(Date.now() - 7200000),
-      finishedAt: new Date(Date.now() - 7100000),
-      attemptCount: 2,
-      errorMessage: "推送超时，请重试",
-    },
-  ];
-
-  for (const j of sampleJobs) {
-    await prisma.publishJob.upsert({
-      where: { id: j.id },
-      update: {},
-      create: j,
-    });
+    await prisma.draftRecord.upsert({ where: { id: d.id }, update: {}, create: d });
   }
 
   console.log("Sample data seeded successfully");
@@ -327,3 +214,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

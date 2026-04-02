@@ -2,13 +2,22 @@
   <div class="page-container content-page">
     <div class="page-scroll">
       <div class="page-split-grid">
-        <n-card class="page-card" title="内容库">
+        <n-card class="page-card" title="内容管理">
           <n-space vertical>
-            <n-space>
-              <n-input v-model:value="query.keyword" placeholder="按标题搜索" clearable style="width: 260px" />
-              <n-button type="primary" @click="refresh">查询</n-button>
-              <n-button secondary @click="openImport = true">导入 Markdown</n-button>
+            <n-space justify="space-between" align="center" wrap>
+              <n-space>
+                <n-input
+                  v-model:value="query.keyword"
+                  placeholder="按标题或摘要搜索"
+                  clearable
+                  style="width: 280px"
+                  @keyup.enter="refresh"
+                />
+                <n-button type="primary" @click="refresh">查询</n-button>
+                <n-button secondary @click="openImport = true">导入 Markdown</n-button>
+              </n-space>
             </n-space>
+
             <n-data-table
               :columns="columns"
               :data="contentRows"
@@ -16,6 +25,7 @@
               :row-key="(row: ContentItem) => row.id"
               :single-line="false"
             />
+
             <n-pagination
               v-model:page="query.page"
               v-model:page-size="query.pageSize"
@@ -29,61 +39,78 @@
         </n-card>
 
         <n-card class="page-card" :title="detail ? `版本工作台 · ${detail.title}` : '版本工作台'">
-          <n-empty v-if="!detail" description="请选择左侧内容，查看版本并管理" />
-          <n-space v-else vertical>
+          <n-empty v-if="!detail" description="先在左侧选择一篇内容" />
+
+          <n-space v-else vertical size="large">
+            <div class="detail-toolbar">
+              <div>
+                <div class="detail-title">{{ currentVersionTitle }}</div>
+                <div class="detail-meta">当前版本 {{ currentVersionLabel }}</div>
+              </div>
+              <n-space>
+                <n-button secondary @click="openThemePreview()">主题预览</n-button>
+                <n-button type="primary" @click="goDraftTask()">去草稿任务</n-button>
+              </n-space>
+            </div>
+
             <n-select
               v-model:value="selectedVersionId"
               :options="versionOptions"
-              placeholder="选择版本查看"
+              placeholder="选择版本"
               @update:value="onVersionChange"
             />
-            <n-input v-model:value="versionForm.title" placeholder="新版本标题" />
-            <n-input v-model:value="versionForm.summary" placeholder="新版本摘要（可选）" />
+
+            <n-input v-model:value="versionForm.title" placeholder="标题" />
+            <n-input v-model:value="versionForm.summary" placeholder="摘要，可选" />
             <n-input
               v-model:value="versionForm.markdownBody"
               type="textarea"
-              :rows="10"
-              placeholder="Markdown 内容"
+              :rows="14"
+              placeholder="Markdown 正文"
             />
-            <n-input v-model:value="versionForm.changeSummary" placeholder="变更说明（可选）" />
-            <n-button type="primary" @click="submitVersion">基于当前内容创建新版本</n-button>
+            <n-input v-model:value="versionForm.changeSummary" placeholder="本次修改说明，可选" />
+
+            <n-space>
+              <n-button type="primary" @click="submitVersion">基于当前内容创建新版本</n-button>
+              <n-button tertiary @click="fillFromLatest">恢复最新版本内容</n-button>
+            </n-space>
           </n-space>
         </n-card>
       </div>
 
-      <n-modal v-model:show="openImport" preset="card" title="导入 Markdown" style="width: 720px; max-width: 96vw;">
+      <n-modal v-model:show="openImport" preset="card" title="导入 Markdown" style="width: 760px; max-width: 96vw">
         <n-form label-placement="top">
           <n-form-item label="标题">
             <n-input v-model:value="importForm.title" placeholder="输入文章标题" />
           </n-form-item>
           <n-form-item label="摘要">
-            <n-input v-model:value="importForm.summary" placeholder="选填" />
+            <n-input v-model:value="importForm.summary" placeholder="可选" />
           </n-form-item>
           <n-form-item label="Markdown">
-            <n-input v-model:value="importForm.markdownBody" type="textarea" :rows="14" />
+            <n-input v-model:value="importForm.markdownBody" type="textarea" :rows="16" />
           </n-form-item>
           <n-form-item label=".md 文件">
             <input type="file" accept=".md,text/markdown,text/plain" @change="onFileChange" />
           </n-form-item>
           <n-space justify="end">
             <n-button @click="openImport = false">取消</n-button>
-            <n-button @click="submitImport(false)">导入</n-button>
-            <n-button type="primary" @click="submitImport(true)">导入并去草稿</n-button>
+            <n-button @click="submitImport(false)">仅导入</n-button>
+            <n-button type="primary" @click="submitImport(true)">导入后直接去草稿任务</n-button>
           </n-space>
         </n-form>
       </n-modal>
 
-      <n-modal v-model:show="openVariant" preset="card" title="生成多平台变体" style="width: 900px; max-width: 96vw;">
+      <n-modal v-model:show="openVariant" preset="card" title="生成多平台变体" style="width: 900px; max-width: 96vw">
         <n-space vertical>
           <n-space>
             <n-select
               v-model:value="variantPlatform"
               :options="platformOptions"
-              style="width: 200px"
+              style="width: 220px"
               placeholder="选择平台"
             />
             <n-button type="primary" :loading="generating" @click="doGenerateVariant">
-              {{ generating ? '生成中...' : '生成' }}
+              {{ generating ? '生成中...' : '生成变体' }}
             </n-button>
           </n-space>
 
@@ -109,7 +136,7 @@
 
           <n-space v-if="variantResult" justify="end">
             <n-button secondary @click="copyVariantText">复制文本</n-button>
-            <n-button type="primary" @click="saveVariantAsContent">保存为新母稿</n-button>
+            <n-button type="primary" @click="saveVariantAsContent">保存为新内容</n-button>
           </n-space>
         </n-space>
       </n-modal>
@@ -123,16 +150,18 @@ import { useRouter } from "vue-router";
 import { NButton, NTag, useMessage } from "naive-ui";
 import {
   createContentVersion,
-  getContentById,
   generateVariant,
+  getContentById,
   importMarkdown,
   listContents,
   type ContentDetail,
   type ContentItem,
+  type ContentVersionItem,
 } from "../api/services";
 
 const message = useMessage();
 const router = useRouter();
+
 const contentRows = ref<ContentItem[]>([]);
 const total = ref(0);
 const detail = ref<ContentDetail | null>(null);
@@ -142,11 +171,6 @@ const openVariant = ref(false);
 const generating = ref(false);
 const variantPlatform = ref("XIAOHONGSHU");
 const variantResult = ref<{ title: string; markdownBody: string; tags?: string[] } | null>(null);
-
-const platformOptions = [
-  { label: "📕 小红书", value: "XIAOHONGSHU" },
-  { label: "💻 CSDN", value: "CSDN" },
-];
 
 const query = reactive({
   page: 1,
@@ -166,6 +190,41 @@ const versionForm = reactive({
   markdownBody: "",
   changeSummary: "",
 });
+
+const platformOptions = [
+  { label: "小红书", value: "XIAOHONGSHU" },
+  { label: "CSDN", value: "CSDN" },
+];
+
+const versionOptions = computed(() =>
+  (detail.value?.versions ?? []).map((version) => ({
+    label: `v${version.versionNo} · ${version.title}`,
+    value: version.id,
+  })),
+);
+
+const currentVersion = computed<ContentVersionItem | null>(() => {
+  if (!detail.value) {
+    return null;
+  }
+  return detail.value.versions.find((item) => item.id === selectedVersionId.value) ?? detail.value.latestVersion;
+});
+
+const currentVersionLabel = computed(() => {
+  const version = currentVersion.value;
+  return version ? `v${version.versionNo}` : "-";
+});
+
+const currentVersionTitle = computed(() => currentVersion.value?.title ?? detail.value?.title ?? "");
+
+function syncVersionForm(version: ContentVersionItem | null) {
+  if (!version) {
+    return;
+  }
+  versionForm.title = version.title;
+  versionForm.summary = version.summary ?? "";
+  versionForm.markdownBody = version.markdownBody ?? "";
+}
 
 const columns = [
   {
@@ -200,27 +259,45 @@ const columns = [
     title: "操作",
     key: "actions",
     render: (row: ContentItem) =>
-      h("div", { style: "display:flex;gap:6px;" }, [
+      h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;" }, [
+        h(
+          NButton,
+          {
+            size: "small",
+            tertiary: true,
+            onClick: () => {
+              void openThemePreview(row.id);
+            },
+          },
+          { default: () => "主题预览" },
+        ),
+        h(
+          NButton,
+          {
+            size: "small",
+            type: "primary",
+            ghost: true,
+            onClick: () => {
+              void goDraftTask(row.id);
+            },
+          },
+          { default: () => "去草稿任务" },
+        ),
         h(
           NButton,
           {
             size: "small",
             type: "warning",
             secondary: true,
-            onClick: () => void openVariantModal(row.id),
+            onClick: () => {
+              void openVariantModal(row.id);
+            },
           },
           { default: () => "多平台变体" },
         ),
       ]),
   },
 ];
-
-const versionOptions = computed(() =>
-  (detail.value?.versions ?? []).map((v) => ({
-    label: `v${v.versionNo} · ${v.title}`,
-    value: v.id,
-  })),
-);
 
 async function refresh() {
   const resp = await listContents({
@@ -239,23 +316,31 @@ async function loadDetail(contentId: string) {
 }
 
 function onVersionChange(versionId: string) {
-  const version =
-    detail.value?.versions.find((v) => v.id === versionId) ??
-    (detail.value?.latestVersion ? { ...detail.value.latestVersion } : null);
-  if (!version || !detail.value) return;
-  if (detail.value.latestVersion && detail.value.latestVersion.id === versionId) {
-    versionForm.title = detail.value.latestVersion.title;
-    versionForm.summary = detail.value.latestVersion.summary ?? "";
-    versionForm.markdownBody = detail.value.latestVersion.markdownBody;
-  } else {
-    versionForm.title = version.title;
+  if (!detail.value) {
+    return;
   }
+  const version = detail.value.versions.find((item) => item.id === versionId) ?? detail.value.latestVersion;
+  if (!version) {
+    return;
+  }
+  selectedVersionId.value = version.id;
+  syncVersionForm(version);
+}
+
+function fillFromLatest() {
+  if (!detail.value?.latestVersion) {
+    return;
+  }
+  selectedVersionId.value = detail.value.latestVersion.id;
+  syncVersionForm(detail.value.latestVersion);
 }
 
 async function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
-  if (!file) return;
+  if (!file) {
+    return;
+  }
   const text = await file.text();
   importForm.markdownBody = text;
   if (!importForm.title.trim()) {
@@ -268,45 +353,83 @@ async function submitImport(goDraft: boolean) {
     message.warning("请填写标题和正文");
     return;
   }
+
   const res = await importMarkdown({
     title: importForm.title,
     summary: importForm.summary || undefined,
     markdownBody: importForm.markdownBody,
   });
+
   message.success("导入成功");
   openImport.value = false;
   await refresh();
   await loadDetail(res.contentId);
+
   if (goDraft) {
     await router.push({
       path: "/drafts",
-      query: {
-        contentId: res.contentId,
-        versionId: res.versionId,
-      },
+      query: { contentId: res.contentId, versionId: res.versionId },
     });
   }
 }
 
 async function submitVersion() {
-  if (!detail.value) return;
+  if (!detail.value) {
+    return;
+  }
   if (!versionForm.title.trim() || !versionForm.markdownBody.trim()) {
     message.warning("标题和正文不能为空");
     return;
   }
+
   await createContentVersion(detail.value.id, {
     title: versionForm.title,
     summary: versionForm.summary || undefined,
     markdownBody: versionForm.markdownBody,
     changeSummary: versionForm.changeSummary || undefined,
   });
+
+  versionForm.changeSummary = "";
   message.success("新版本已创建");
   await loadDetail(detail.value.id);
   await refresh();
 }
 
-function openVariantModal(contentId: string) {
-  void loadDetail(contentId);
+async function resolveTarget(contentId?: string) {
+  if (contentId) {
+    const loaded = await getContentById(contentId);
+    const versionId = loaded.latestVersion?.id ?? loaded.versions[0]?.id ?? "";
+    return { contentId, versionId };
+  }
+  if (!detail.value) {
+    return null;
+  }
+  return {
+    contentId: detail.value.id,
+    versionId: selectedVersionId.value || detail.value.latestVersion?.id || detail.value.versions[0]?.id || "",
+  };
+}
+
+async function openThemePreview(contentId?: string) {
+  const target = await resolveTarget(contentId);
+  if (!target) {
+    message.warning("请先选择内容");
+    return;
+  }
+  await router.push({ path: "/themes", query: target });
+}
+
+async function goDraftTask(contentId?: string) {
+  const target = await resolveTarget(contentId);
+  if (!target) {
+    message.warning("请先选择内容");
+    return;
+  }
+  await router.push({ path: "/drafts", query: target });
+}
+
+async function openVariantModal(contentId: string) {
+  await loadDetail(contentId);
   variantResult.value = null;
   openVariant.value = true;
 }
@@ -321,30 +444,31 @@ async function doGenerateVariant() {
     message.warning("当前版本没有正文内容");
     return;
   }
+
   generating.value = true;
   try {
-    variantResult.value = await generateVariant(
-      variantPlatform.value,
-      markdown,
-      versionForm.title || detail.value.title,
-    );
+    variantResult.value = await generateVariant(variantPlatform.value, markdown, versionForm.title || detail.value.title);
     message.success("变体生成完成");
-  } catch (err: any) {
-    message.error("生成失败：" + (err.message || "未知错误"));
+  } catch (error: any) {
+    message.error(`生成失败：${error.message || "未知错误"}`);
   } finally {
     generating.value = false;
   }
 }
 
 async function copyVariantText() {
-  if (!variantResult.value) return;
+  if (!variantResult.value) {
+    return;
+  }
   const text = `# ${variantResult.value.title}\n\n${variantResult.value.markdownBody}`;
   await navigator.clipboard.writeText(text);
   message.success("已复制到剪贴板");
 }
 
 async function saveVariantAsContent() {
-  if (!variantResult.value) return;
+  if (!variantResult.value) {
+    return;
+  }
   try {
     const res = await importMarkdown({
       title: variantResult.value.title,
@@ -352,25 +476,33 @@ async function saveVariantAsContent() {
       markdownBody: variantResult.value.markdownBody,
       tags: variantResult.value.tags,
     });
-    message.success("已保存为新母稿");
+    message.success("已保存为新内容");
     openVariant.value = false;
     await refresh();
     await loadDetail(res.contentId);
-  } catch (err: any) {
-    message.error("保存失败：" + (err.message || "未知错误"));
+  } catch (error: any) {
+    message.error(`保存失败：${error.message || "未知错误"}`);
   }
 }
 
 function formatMarkdown(text: string) {
   return text
-    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
-    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    .replace(/^\- (.+)$/gm, '<li>$1</li>')
-    .replace(/\n/g, '<br>');
+    .replace(/^### (.+)$/gm, "<h4>$1</h4>")
+    .replace(/^## (.+)$/gm, "<h3>$1</h3>")
+    .replace(/^# (.+)$/gm, "<h2>$1</h2>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/`(.+?)`/g, "<code>$1</code>")
+    .replace(/(?:^- .+$\n?)+/gm, (block) => {
+      const items = block
+        .trim()
+        .split("\n")
+        .map((line) => line.replace(/^- /, ""))
+        .map((line) => `<li>${line}</li>`)
+        .join("");
+      return `<ul>${items}</ul>`;
+    })
+    .replace(/\n/g, "<br>");
 }
 
 onMounted(async () => {
@@ -382,6 +514,26 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.detail-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.detail-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.detail-meta {
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
 .variant-preview-box {
   padding: 16px;
   background: #fafbfc;
@@ -415,6 +567,10 @@ onMounted(async () => {
 .variant-markdown :deep(h4) {
   margin: 16px 0 8px;
   color: #303133;
+}
+
+.variant-markdown :deep(ul) {
+  margin: 8px 0 8px 20px;
 }
 
 .variant-markdown :deep(code) {

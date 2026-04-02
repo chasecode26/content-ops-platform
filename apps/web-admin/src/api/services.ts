@@ -1,4 +1,4 @@
-import { api, type ApiEnvelope } from "./client";
+﻿import { api, type ApiEnvelope } from "./client";
 
 export type HealthData = { api: string; database: string; redis: string };
 
@@ -24,6 +24,8 @@ export type ContentVersionItem = {
   id: string;
   versionNo: number;
   title: string;
+  summary?: string;
+  markdownBody?: string;
   createdAt: string;
 };
 

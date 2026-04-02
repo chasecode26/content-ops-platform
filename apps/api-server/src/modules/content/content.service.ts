@@ -143,6 +143,8 @@ export class ContentService {
         id: version.id,
         versionNo: version.versionNo,
         title: version.title,
+        summary: version.summary ?? undefined,
+        markdownBody: version.markdownBody,
         createdAt: version.createdAt.toISOString(),
       })),
       drafts: item.drafts.map((draft) => ({
@@ -226,3 +228,4 @@ export class ContentService {
       .slice(0, 64) || "untitled";
   }
 }
+
