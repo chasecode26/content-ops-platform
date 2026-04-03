@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query } from "@nestjs/common";
 
 import { ok } from "../../common/http-response";
 import { normalizeUserId } from "../../common/user-context";
@@ -32,5 +32,10 @@ export class ChannelAccountsController {
     @Body() dto: UpdateChannelAccountDto,
   ) {
     return ok(await this.channelAccountsService.update(normalizeUserId(rawUserId), accountId, dto));
+  }
+
+  @Delete(":accountId")
+  async remove(@Headers("x-user-id") rawUserId: string | undefined, @Param("accountId") accountId: string) {
+    return ok(await this.channelAccountsService.remove(normalizeUserId(rawUserId), accountId));
   }
 }

@@ -3,35 +3,31 @@ import { Injectable, Logger } from "@nestjs/common";
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly baseUrl: string;
-  private readonly apiKey: string;
-  private readonly model: string;
-
-  constructor() {
-    this.baseUrl = process.env.AI_BASE_URL ?? "https://openrouter.ai/api";
-    this.apiKey = process.env.AI_API_KEY ?? "";
-    this.model = process.env.AI_MODEL ?? "openai/gpt-4o";
-  }
 
   async chat(messages: { role: string; content: string }[]): Promise<string> {
-    if (!this.apiKey) {
+    const settings = this.getSettings();
+    if (!settings.apiKey && !this.isOllamaBaseUrl(settings.baseUrl)) {
       throw new Error("AI_API_KEY not configured");
     }
 
-    const url = `${this.baseUrl}/v1/chat/completions`;
+    const url = `${settings.baseUrl}/v1/chat/completions`;
 
-    this.logger.log(`Calling AI model: ${this.model}`);
+    this.logger.log(`Calling AI model: ${settings.model}`);
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-        "HTTP-Referer": "http://localhost:8088",
-        "X-Title": "Content Ops Platform",
+        ...(settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {}),
+        ...(!this.isOllamaBaseUrl(settings.baseUrl)
+          ? {
+              "HTTP-Referer": "http://localhost:8088",
+              "X-Title": "Content Ops Platform",
+            }
+          : {}),
       },
       body: JSON.stringify({
-        model: this.model,
+        model: settings.model,
         messages,
         temperature: 0.7,
         max_tokens: 4096,
@@ -46,6 +42,52 @@ export class AiService {
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content ?? "";
+  }
+
+  async testConnection(settings?: { baseUrl: string; apiKey: string; model: string }) {
+    const target = settings ?? this.getSettings();
+    if (!target.apiKey && !this.isOllamaBaseUrl(target.baseUrl)) {
+      throw new Error("AI_API_KEY not configured");
+    }
+
+    const response = await fetch(`${target.baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(target.apiKey ? { Authorization: `Bearer ${target.apiKey}` } : {}),
+        ...(!this.isOllamaBaseUrl(target.baseUrl)
+          ? {
+              "HTTP-Referer": "http://localhost:8088",
+              "X-Title": "Content Ops Platform",
+            }
+          : {}),
+      },
+      body: JSON.stringify({
+        model: target.model,
+        messages: [{ role: "user", content: "hi" }],
+        max_tokens: 10,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.logger.error(`AI API error: ${response.status} ${errorText}`);
+      throw new Error(`AI API error: ${response.status}`);
+    }
+
+    return true;
+  }
+
+  private getSettings() {
+    return {
+      baseUrl: process.env.AI_BASE_URL ?? "https://openrouter.ai/api",
+      apiKey: process.env.AI_API_KEY ?? "",
+      model: process.env.AI_MODEL ?? "openai/gpt-4o",
+    };
+  }
+
+  private isOllamaBaseUrl(baseUrl: string): boolean {
+    return /(?:127\.0\.0\.1|localhost):11434/i.test(baseUrl) || /\/ollama\/?$/i.test(baseUrl);
   }
 
   async generateArticle(prompt: string): Promise<{

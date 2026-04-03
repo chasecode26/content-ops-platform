@@ -11,7 +11,14 @@ config({ path: resolve(process.cwd(), "../../.env") });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const port = Number(process.env.PORT ?? "3000");
 
+  app.enableCors({
+    origin: [/^http:\/\/127\.0\.0\.1:\d+$/, /^http:\/\/localhost:\d+$/],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user-id"],
+  });
   app.setGlobalPrefix("api");
   app.useGlobalPipes(
     new ValidationPipe({
@@ -21,7 +28,7 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(3000);
+  await app.listen(port);
 }
 
 void bootstrap();

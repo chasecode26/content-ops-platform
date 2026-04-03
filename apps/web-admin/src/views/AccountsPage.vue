@@ -1,36 +1,51 @@
 <template>
   <div class="page-container accounts-page">
     <div class="page-scroll">
-      <div class="page-split-grid">
-        <n-card class="page-card" title="新增公众号账号">
-          <n-form label-placement="top">
-            <n-form-item label="账号名称">
-              <n-input v-model:value="createForm.name" />
-            </n-form-item>
-            <n-form-item label="appId">
-              <n-input v-model:value="createForm.appId" />
-            </n-form-item>
-            <n-form-item label="appSecret">
-              <n-input v-model:value="createForm.appSecret" type="password" show-password-on="click" />
-            </n-form-item>
-            <n-form-item label="作者名">
-              <n-input v-model:value="createForm.author" />
-            </n-form-item>
-            <n-form-item label="thumb_media_id">
-              <n-input v-model:value="createForm.defaultThumbMediaId" placeholder="可选，不填则自动上传兜底图" />
-            </n-form-item>
-            <n-button type="primary" @click="submitCreate">保存账号</n-button>
-          </n-form>
-        </n-card>
-        <n-card class="page-card" title="账号列表（密文存储 / 脱敏展示）">
-          <n-space vertical>
-            <n-space>
-              <n-button secondary @click="refresh">刷新</n-button>
+      <n-grid class="accounts-grid" :x-gap="16" :y-gap="16" cols="1 l:2" responsive="screen">
+        <n-gi>
+          <n-card class="page-card panel-card" title="新增公众号账号">
+            <n-form label-placement="top">
+              <n-form-item label="账号名称">
+                <n-input v-model:value="createForm.name" />
+              </n-form-item>
+              <n-form-item label="appId">
+                <n-input v-model:value="createForm.appId" />
+              </n-form-item>
+              <n-form-item label="appSecret">
+                <n-input v-model:value="createForm.appSecret" type="password" show-password-on="click" />
+              </n-form-item>
+              <n-form-item label="作者名">
+                <n-input v-model:value="createForm.author" />
+              </n-form-item>
+              <n-form-item label="thumb_media_id">
+                <n-input v-model:value="createForm.defaultThumbMediaId" placeholder="可选，不填则自动上传兜底图" />
+              </n-form-item>
+              <n-button type="primary" @click="submitCreate">保存账号</n-button>
+            </n-form>
+          </n-card>
+        </n-gi>
+        <n-gi>
+          <n-card class="page-card panel-card" title="账号列表（密文存储 / 脱敏展示）">
+            <n-space vertical>
+              <n-space>
+                <n-tooltip trigger="hover">
+                  <template #trigger>
+                    <n-button circle secondary @click="refresh">
+                      <span class="action-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path :d="appIconPaths.refresh" />
+                        </svg>
+                      </span>
+                    </n-button>
+                  </template>
+                  刷新账号列表
+                </n-tooltip>
+              </n-space>
+              <n-data-table :columns="columns" :data="accounts" :pagination="false" />
             </n-space>
-            <n-data-table :columns="columns" :data="accounts" :pagination="false" />
-          </n-space>
-        </n-card>
-      </div>
+          </n-card>
+        </n-gi>
+      </n-grid>
 
       <n-modal v-model:show="showEdit" preset="card" title="编辑账号" style="width: 680px; max-width: 96vw;">
         <n-form label-placement="top">
@@ -62,18 +77,19 @@
 
 <script setup lang="ts">
 import { h, onMounted, reactive, ref } from "vue";
-import { NButton, NTag, useMessage } from "naive-ui";
+import { NButton, NPopconfirm, NTag, NTooltip, useMessage } from "naive-ui";
 import {
   createAccount,
+  deleteAccount,
   listAccounts,
   updateAccount,
   validateAccount,
   type AccountItem,
 } from "../api/services";
+import { appIconPaths, renderPathIcon } from "../utils/icons";
 
 const message = useMessage();
 const accounts = ref<AccountItem[]>([]);
-
 const createForm = reactive({
   name: "",
   appId: "",
@@ -171,6 +187,12 @@ async function runValidate(accountId: string) {
   }
 }
 
+async function removeOne(accountId: string) {
+  const result = await deleteAccount(accountId);
+  message.success(`已删除账号：${result.name}`);
+  await refresh();
+}
+
 const columns = [
   { title: "名称", key: "name" },
   {
@@ -197,21 +219,77 @@ const columns = [
   {
     title: "操作",
     key: "actions",
+    width: 140,
     render: (row: AccountItem) =>
-      h("div", { style: "display:flex;gap:8px;" }, [
-        h(
-          NButton,
-          { size: "small", tertiary: true, onClick: () => void runValidate(row.id) },
-          { default: () => "校验" },
-        ),
-        h(
-          NButton,
-          { size: "small", tertiary: true, type: "primary", onClick: () => openEdit(row) },
-          { default: () => "编辑" },
-        ),
+      h("div", { class: "account-actions" }, [
+        h(NTooltip, null, {
+          trigger: () =>
+            h(
+              NButton,
+              { size: "small", tertiary: true, circle: true, onClick: () => void runValidate(row.id) },
+              { default: () => renderPathIcon(appIconPaths.validate) },
+            ),
+          default: () => "校验账号",
+        }),
+        h(NTooltip, null, {
+          trigger: () =>
+            h(
+              NButton,
+              { size: "small", tertiary: true, circle: true, type: "primary", onClick: () => openEdit(row) },
+              { default: () => renderPathIcon(appIconPaths.edit) },
+            ),
+          default: () => "编辑账号",
+        }),
+        h(NPopconfirm, { onPositiveClick: () => void removeOne(row.id) }, {
+          trigger: () =>
+            h(
+              NButton,
+              { size: "small", tertiary: true, circle: true, type: "error" },
+              { default: () => renderPathIcon(appIconPaths.delete) },
+            ),
+          default: () => `确认删除账号「${row.name}」？`,
+        }),
       ]),
   },
 ];
 
 onMounted(refresh);
 </script>
+
+<style scoped>
+.accounts-page {
+  min-height: 0;
+}
+
+.accounts-grid {
+  flex: 1;
+  min-height: 0;
+}
+
+.accounts-grid :deep(.n-grid-item) {
+  min-height: 0;
+}
+
+.panel-card {
+  height: 100%;
+}
+
+.account-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.action-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+}
+
+.action-icon svg,
+.action-icon :deep(svg) {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+</style>

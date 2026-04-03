@@ -108,6 +108,26 @@ export class ChannelAccountsService {
     };
   }
 
+  async remove(userId: string, accountId: string) {
+    const existing = await this.prisma.channelAccount.findFirst({
+      where: { id: accountId, userId },
+      select: { id: true, name: true },
+    });
+    if (!existing) {
+      throw new NotFoundException("CHANNEL_ACCOUNT_NOT_FOUND");
+    }
+
+    await this.prisma.channelAccount.delete({
+      where: { id: accountId },
+    });
+
+    return {
+      id: existing.id,
+      deleted: true,
+      name: existing.name,
+    };
+  }
+
   private buildCredentialSummary(credentialCiphertext: string | null) {
     const credential = decryptCredentials(credentialCiphertext);
     return {

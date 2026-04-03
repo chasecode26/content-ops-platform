@@ -293,6 +293,21 @@ export class DraftsService {
         platformDraftId: draftRecord?.platformDraftId ?? null,
         previewUrl: draftRecord?.previewUrl ?? null,
         errorMessage: draftRecord?.errorMessage ?? job.errorMessage ?? null,
+        renderedHtml: draftRecord?.renderedHtml ?? null,
+        themeCode:
+          draftRecord?.platformPayload &&
+          typeof draftRecord.platformPayload === "object" &&
+          !Array.isArray(draftRecord.platformPayload) &&
+          typeof (draftRecord.platformPayload as Record<string, unknown>).themeCode === "string"
+            ? ((draftRecord.platformPayload as Record<string, unknown>).themeCode as string)
+            : null,
+        versionId:
+          draftRecord?.platformPayload &&
+          typeof draftRecord.platformPayload === "object" &&
+          !Array.isArray(draftRecord.platformPayload) &&
+          typeof (draftRecord.platformPayload as Record<string, unknown>).versionId === "string"
+            ? ((draftRecord.platformPayload as Record<string, unknown>).versionId as string)
+            : null,
       },
       retryable:
         Boolean(

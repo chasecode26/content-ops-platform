@@ -1,79 +1,156 @@
 <template>
   <div class="page-container drafts-page">
     <div class="page-scroll">
-      <n-space vertical size="large">
-        <div class="page-split-grid draft-workbench">
-          <n-card class="page-card" title="新建草稿任务">
-            <n-form label-placement="top">
-              <n-form-item label="内容">
-                <n-select v-model:value="form.contentId" :options="contentOptions" @update:value="onContentChange" />
-              </n-form-item>
-              <n-form-item label="版本">
-                <n-select
-                  v-model:value="form.versionId"
-                  :options="versionOptions"
-                  placeholder="选择版本"
-                  @update:value="refreshPreview"
-                />
-              </n-form-item>
-              <n-form-item label="账号">
-                <n-select v-model:value="form.channelAccountId" :options="accountOptions" />
-              </n-form-item>
-              <n-form-item label="主题">
-                <n-select v-model:value="form.themeCode" :options="themeOptions" @update:value="refreshPreview" />
-              </n-form-item>
-              <n-space>
-                <n-button secondary @click="openThemePreview">单独打开主题预览</n-button>
-                <n-button type="primary" @click="submit">推送草稿</n-button>
-              </n-space>
-            </n-form>
-          </n-card>
-
-          <n-card class="page-card" title="草稿预览">
-            <n-space vertical>
-              <div v-if="previewMeta" class="preview-meta">{{ previewMeta }}</div>
-              <div class="preview-box" v-if="previewHtml" v-html="previewHtml"></div>
-              <n-empty v-else description="选择内容、版本和主题后，这里会直接显示公众号成稿预览" />
-            </n-space>
-          </n-card>
+      <section class="drafts-hero">
+        <div>
+          <p class="drafts-hero__eyebrow">Draft Delivery Console</p>
+          <h1 class="drafts-hero__title">草稿箱投递工作台</h1>
+          <p class="drafts-hero__desc">左侧配置，右侧即时预览，下方追踪任务。选内容与风格时，不再盲投。</p>
         </div>
+        <div class="drafts-hero__chips">
+          <div class="hero-chip">
+            <span>任务总数</span>
+            <strong>{{ total }}</strong>
+          </div>
+          <div class="hero-chip">
+            <span>预览状态</span>
+            <strong>{{ previewLoading ? "渲染中" : previewError ? "失败" : previewHtml ? "就绪" : "待选择" }}</strong>
+          </div>
+        </div>
+      </section>
 
-        <n-card class="page-card" title="草稿任务列表">
-          <n-space vertical>
-            <n-space>
-              <n-select
-                v-model:value="query.status"
-                :options="statusOptions"
-                clearable
-                placeholder="按状态筛选"
-                style="width: 200px"
-              />
-              <n-button secondary @click="refresh">查询</n-button>
+      <n-grid :x-gap="18" :y-gap="18" cols="1 xl:5" responsive="screen">
+        <n-gi span="1 xl:2">
+          <n-card class="page-card panel-card" title="新建草稿任务">
+            <n-space vertical :size="16">
+              <div class="form-summary">
+                <div>
+                  <span class="form-summary__label">内容</span>
+                  <strong>{{ selectedContentTitle }}</strong>
+                </div>
+                <div>
+                  <span class="form-summary__label">主题</span>
+                  <strong>{{ selectedThemeName }}</strong>
+                </div>
+              </div>
+
+              <n-form label-placement="top">
+                <n-form-item label="内容">
+                  <n-select v-model:value="form.contentId" :options="contentOptions" @update:value="onContentChange" />
+                </n-form-item>
+                <n-form-item label="版本">
+                  <n-select v-model:value="form.versionId" :options="versionOptions" placeholder="选择版本" />
+                </n-form-item>
+                <n-form-item label="账号">
+                  <n-select v-model:value="form.channelAccountId" :options="accountOptions" />
+                </n-form-item>
+                <n-form-item label="主题">
+                  <n-select v-model:value="form.themeCode" :options="themeOptions" />
+                </n-form-item>
+                <n-button type="primary" block @click="submit">推送草稿</n-button>
+              </n-form>
             </n-space>
-            <n-data-table :columns="columns" :data="drafts" :pagination="false" />
-            <n-pagination
-              v-model:page="query.page"
-              v-model:page-size="query.pageSize"
-              :item-count="total"
-              show-size-picker
-              :page-sizes="[10, 20, 50]"
-              @update:page="refresh"
-              @update:page-size="refresh"
-            />
-          </n-space>
-        </n-card>
-      </n-space>
+          </n-card>
+        </n-gi>
 
-      <n-drawer v-model:show="showDetail" :width="460" placement="right">
+        <n-gi span="1 xl:3">
+          <n-card class="page-card panel-card preview-card" title="右侧预览">
+            <div class="preview-meta">
+              <n-tag size="small" type="info">{{ form.versionId ? selectedVersionLabel : "未选择版本" }}</n-tag>
+              <n-tag size="small" :type="previewError ? 'error' : previewHtml ? 'success' : 'default'">
+                {{ previewLoading ? "生成中" : previewError ? "预览失败" : previewHtml ? "可投递" : "待选择" }}
+              </n-tag>
+            </div>
+
+            <n-spin :show="previewLoading">
+              <n-result
+                v-if="previewError"
+                status="error"
+                title="预览生成失败"
+                :description="previewError"
+              >
+                <template #footer>
+                  <n-button secondary @click="updateComposerPreview">重新渲染</n-button>
+                </template>
+              </n-result>
+
+              <n-empty
+                v-else-if="!previewHtml"
+                description="选择内容、版本和主题后，这里会直接显示微信 HTML 预览。"
+              />
+
+              <div v-else class="preview-shell">
+                <div class="preview-shell__toolbar">
+                  <div>
+                    <span class="preview-shell__label">预览内容</span>
+                    <strong>{{ selectedContentTitle }}</strong>
+                  </div>
+                  <div>
+                    <span class="preview-shell__label">目标风格</span>
+                    <strong>{{ selectedThemeName }}</strong>
+                  </div>
+                </div>
+                <div class="preview-frame" v-html="previewHtml"></div>
+              </div>
+            </n-spin>
+          </n-card>
+        </n-gi>
+      </n-grid>
+
+      <n-card class="page-card panel-card draft-list-card" title="草稿任务列表">
+        <n-space vertical :size="16">
+          <div class="list-toolbar">
+            <n-select
+              v-model:value="query.status"
+              :options="statusOptions"
+              clearable
+              placeholder="按状态筛选"
+              style="width: 220px"
+            />
+            <n-tooltip trigger="hover">
+              <template #trigger>
+                <n-button circle secondary @click="refresh">
+                  <span class="action-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path :d="appIconPaths.search" />
+                    </svg>
+                  </span>
+                </n-button>
+              </template>
+              查询
+            </n-tooltip>
+          </div>
+          <n-data-table :columns="columns" :data="drafts" :pagination="false" />
+          <n-pagination
+            v-model:page="query.page"
+            v-model:page-size="query.pageSize"
+            :item-count="total"
+            show-size-picker
+            :page-sizes="[10, 20, 50]"
+            @update:page="refresh"
+            @update:page-size="refresh"
+          />
+        </n-space>
+      </n-card>
+
+      <n-drawer v-model:show="showDetail" :width="520" placement="right">
         <n-drawer-content title="任务详情">
-          <n-descriptions :column="1" bordered label-placement="left">
-            <n-descriptions-item label="任务 ID">{{ detail?.publishJobId ?? "-" }}</n-descriptions-item>
-            <n-descriptions-item label="状态">{{ detail?.status ?? "-" }}</n-descriptions-item>
-            <n-descriptions-item label="内容">{{ detail?.content.title ?? "-" }}</n-descriptions-item>
-            <n-descriptions-item label="平台草稿 ID">{{ detail?.draftRecord.platformDraftId ?? "-" }}</n-descriptions-item>
-            <n-descriptions-item label="错误信息">{{ detail?.draftRecord.errorMessage ?? "-" }}</n-descriptions-item>
-            <n-descriptions-item label="创建时间">{{ detail?.createdAt ?? "-" }}</n-descriptions-item>
-          </n-descriptions>
+          <n-space vertical :size="16">
+            <n-descriptions :column="1" bordered label-placement="left">
+              <n-descriptions-item label="任务ID">{{ detail?.publishJobId ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="状态">{{ detail?.status ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="内容">{{ detail?.content.title ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="主题">{{ detail?.draftRecord.themeCode ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="平台草稿ID">{{ detail?.draftRecord.platformDraftId ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="错误信息">{{ detail?.draftRecord.errorMessage ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="创建时间">{{ detail?.createdAt ?? "-" }}</n-descriptions-item>
+            </n-descriptions>
+
+            <div v-if="detail?.draftRecord.renderedHtml" class="detail-preview">
+              <div class="detail-preview__label">任务快照</div>
+              <div class="preview-frame" v-html="detail.draftRecord.renderedHtml"></div>
+            </div>
+          </n-space>
           <template #footer>
             <n-space justify="end">
               <n-button @click="showDetail = false">关闭</n-button>
@@ -87,9 +164,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, onUnmounted, reactive, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { NButton, NTag, useMessage } from "naive-ui";
+import { computed, h, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { useRoute } from "vue-router";
+import { NButton, NTag, NTooltip, useMessage } from "naive-ui";
 import {
   createDraft,
   getContentById,
@@ -107,23 +184,25 @@ import {
   type DraftJobItem,
   type ThemeItem,
 } from "../api/services";
+import { appIconPaths, renderPathIcon } from "../utils/icons";
 
 const message = useMessage();
 const route = useRoute();
-const router = useRouter();
-
 const contents = ref<ContentItem[]>([]);
 const accounts = ref<AccountItem[]>([]);
 const themes = ref<ThemeItem[]>([]);
 const drafts = ref<DraftJobItem[]>([]);
 const versions = ref<ContentVersionItem[]>([]);
 const total = ref(0);
-const currentContentTitle = ref("");
-const previewHtml = ref("");
 
 const showDetail = ref(false);
 const detail = ref<DraftDetail | null>(null);
+const previewHtml = ref("");
+const previewError = ref("");
+const previewLoading = ref(false);
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
+let previewTimer: ReturnType<typeof setTimeout> | null = null;
+let previewTaskId = 0;
 
 const form = reactive({
   contentId: "",
@@ -145,72 +224,44 @@ const statusOptions = [
   { label: "PENDING", value: "PENDING" },
 ];
 
-const contentOptions = computed(() => contents.value.map((item) => ({ label: item.title, value: item.id })));
+const contentOptions = computed(() => contents.value.map((i) => ({ label: i.title, value: i.id })));
 const versionOptions = computed(() =>
-  versions.value.map((version) => ({ label: `v${version.versionNo} · ${version.title}`, value: version.id })),
+  versions.value.map((v) => ({ label: `v${v.versionNo} · ${v.title}`, value: v.id })),
 );
-const accountOptions = computed(() => accounts.value.map((item) => ({ label: item.name, value: item.id })));
-const themeOptions = computed(() => themes.value.map((item) => ({ label: item.name, value: item.code })));
-const currentVersion = computed(() => versions.value.find((item) => item.id === form.versionId) ?? null);
-const previewMeta = computed(() => {
-  if (!currentVersion.value || !form.themeCode) {
-    return "";
-  }
-  const themeName = themes.value.find((item) => item.code === form.themeCode)?.name ?? form.themeCode;
-  return `${currentContentTitle.value} · v${currentVersion.value.versionNo} · ${themeName}`;
-});
+const accountOptions = computed(() => accounts.value.map((i) => ({ label: i.name, value: i.id })));
+const themeOptions = computed(() => themes.value.map((i) => ({ label: i.name, value: i.code })));
 
-async function loadContentVersions(contentId: string) {
-  versions.value = [];
-  currentContentTitle.value = "";
-  if (!contentId) {
-    return;
-  }
-  const contentDetail = await getContentById(contentId);
-  versions.value = contentDetail.versions ?? [];
-  currentContentTitle.value = contentDetail.title;
-  if (!form.versionId || !versions.value.some((item) => item.id === form.versionId)) {
-    form.versionId = contentDetail.latestVersion?.id ?? versions.value[0]?.id ?? "";
-  }
-}
+const selectedContentTitle = computed(
+  () => contents.value.find((item) => item.id === form.contentId)?.title ?? "未选择内容",
+);
+const selectedThemeName = computed(
+  () => themes.value.find((item) => item.code === form.themeCode)?.name ?? "未选择主题",
+);
+const selectedVersionLabel = computed(() => {
+  const matched = versions.value.find((item) => item.id === form.versionId);
+  return matched ? `v${matched.versionNo} · ${matched.title}` : "未选择版本";
+});
 
 async function onContentChange() {
   form.versionId = "";
-  await loadContentVersions(form.contentId);
-  await refreshPreview();
+  versions.value = [];
+  if (!form.contentId) return;
+  const contentDetail = await getContentById(form.contentId);
+  versions.value = contentDetail.versions ?? [];
+  form.versionId = contentDetail.latestVersion?.id ?? versions.value[0]?.id ?? "";
 }
 
 async function applyRoutePreset() {
   const contentId = typeof route.query.contentId === "string" ? route.query.contentId : "";
   const versionId = typeof route.query.versionId === "string" ? route.query.versionId : "";
-  const themeCode = typeof route.query.themeCode === "string" ? route.query.themeCode : "";
-
   if (!contentId) {
     return;
   }
-
   form.contentId = contentId;
-  await loadContentVersions(contentId);
-  if (versionId && versions.value.some((item) => item.id === versionId)) {
+  await onContentChange();
+  if (versionId) {
     form.versionId = versionId;
   }
-  if (themeCode && themes.value.some((item) => item.code === themeCode)) {
-    form.themeCode = themeCode;
-  }
-}
-
-async function refreshPreview() {
-  const version = versions.value.find((item) => item.id === form.versionId);
-  if (!version || !form.themeCode) {
-    previewHtml.value = "";
-    return;
-  }
-  previewHtml.value = await renderPreview({
-    themeCode: form.themeCode,
-    platform: "WECHAT_OFFICIAL",
-    title: version.title,
-    markdownBody: version.markdownBody ?? "",
-  });
 }
 
 async function refresh() {
@@ -227,6 +278,60 @@ function stopPolling() {
   if (pollTimer) {
     clearTimeout(pollTimer);
     pollTimer = null;
+  }
+}
+
+function stopPreviewTimer() {
+  if (previewTimer) {
+    clearTimeout(previewTimer);
+    previewTimer = null;
+  }
+}
+
+function scheduleComposerPreview() {
+  stopPreviewTimer();
+  previewTimer = setTimeout(() => {
+    void updateComposerPreview();
+  }, 180);
+}
+
+async function updateComposerPreview() {
+  if (!form.contentId || !form.versionId || !form.themeCode) {
+    previewHtml.value = "";
+    previewError.value = "";
+    previewLoading.value = false;
+    return;
+  }
+
+  const version = versions.value.find((item) => item.id === form.versionId);
+  if (!version?.markdownBody?.trim()) {
+    previewHtml.value = "";
+    previewError.value = "所选版本没有可渲染的正文内容";
+    previewLoading.value = false;
+    return;
+  }
+
+  const taskId = ++previewTaskId;
+  previewLoading.value = true;
+  previewError.value = "";
+
+  try {
+    const html = await renderPreview({
+      themeCode: form.themeCode,
+      platform: "WECHAT_OFFICIAL",
+      markdownBody: version.markdownBody,
+      title: version.title,
+    });
+    if (taskId !== previewTaskId) return;
+    previewHtml.value = html;
+  } catch (error: any) {
+    if (taskId !== previewTaskId) return;
+    previewHtml.value = "";
+    previewError.value = error?.message || "预览渲染失败";
+  } finally {
+    if (taskId === previewTaskId) {
+      previewLoading.value = false;
+    }
   }
 }
 
@@ -273,21 +378,6 @@ async function submit() {
   await pollJob(result.publishJobId);
 }
 
-async function openThemePreview() {
-  if (!form.contentId || !form.versionId) {
-    message.warning("请先选择内容和版本");
-    return;
-  }
-  await router.push({
-    path: "/themes",
-    query: {
-      contentId: form.contentId,
-      versionId: form.versionId,
-      themeCode: form.themeCode,
-    },
-  });
-}
-
 async function openDetail(jobId: string) {
   detail.value = await getDraftDetail(jobId);
   showDetail.value = true;
@@ -302,19 +392,18 @@ async function retryOne(jobId: string) {
 }
 
 async function retryFromDetail() {
-  if (!detail.value) {
-    return;
-  }
+  if (!detail.value) return;
   await retryOne(detail.value.publishJobId);
   detail.value = await getDraftDetail(detail.value.publishJobId);
 }
 
 const columns = [
   { title: "标题", key: "contentTitle" },
-  { title: "账号", key: "channelAccountName" },
+  { title: "账号", key: "channelAccountName", width: 160 },
   {
     title: "状态",
     key: "status",
+    width: 110,
     render: (row: DraftJobItem) =>
       h(
         NTag,
@@ -322,100 +411,259 @@ const columns = [
         { default: () => row.status },
       ),
   },
-  { title: "创建时间", key: "createdAt" },
+  { title: "创建时间", key: "createdAt", minWidth: 170 },
   {
     title: "操作",
     key: "actions",
+    minWidth: 110,
     render: (row: DraftJobItem) =>
-      h("div", { style: "display:flex;gap:8px;" }, [
-        h(
-          NButton,
-          {
-            size: "small",
-            tertiary: true,
-            onClick: () => {
-              void openDetail(row.publishJobId);
-            },
-          },
-          { default: () => "详情" },
-        ),
+      h("div", { class: "draft-actions" }, [
+        h(NTooltip, null, {
+          trigger: () =>
+            h(
+              NButton,
+              {
+                size: "small",
+                tertiary: true,
+                circle: true,
+                onClick: () => void openDetail(row.publishJobId),
+              },
+              { default: () => renderPathIcon(appIconPaths.detail) },
+            ),
+          default: () => "任务详情",
+        }),
         ...(row.status === "FAILED"
           ? [
-              h(
-                NButton,
-                {
-                  size: "small",
-                  type: "warning",
-                  tertiary: true,
-                  onClick: () => {
-                    void retryOne(row.publishJobId);
-                  },
-                },
-                { default: () => "重试" },
-              ),
+              h(NTooltip, null, {
+                trigger: () =>
+                  h(
+                    NButton,
+                    {
+                      size: "small",
+                      type: "warning",
+                      secondary: true,
+                      circle: true,
+                      onClick: () => void retryOne(row.publishJobId),
+                    },
+                    { default: () => renderPathIcon(appIconPaths.retry) },
+                  ),
+                default: () => "失败重试",
+              }),
             ]
           : []),
       ]),
   },
 ];
 
+watch(
+  () => [form.contentId, form.versionId, form.themeCode],
+  () => {
+    scheduleComposerPreview();
+  },
+);
+
 onMounted(async () => {
-  const [contentResp, accountResp, themeResp] = await Promise.all([
-    listContents({ page: 1, pageSize: 100 }),
-    listAccounts(),
-    listThemes(),
-  ]);
-
-  contents.value = contentResp.items;
-  accounts.value = accountResp;
-  themes.value = themeResp;
-
-  form.contentId = contentResp.items[0]?.id ?? "";
-  form.channelAccountId = accountResp[0]?.id ?? "";
-  form.themeCode = themeResp[0]?.code ?? "";
-
+  const [c, a, t] = await Promise.all([listContents({ page: 1, pageSize: 100 }), listAccounts(), listThemes()]);
+  contents.value = c.items;
+  accounts.value = a;
+  themes.value = t;
+  form.contentId = c.items[0]?.id ?? "";
+  await onContentChange();
   await applyRoutePreset();
-
-  if (!form.contentId && contentResp.items[0]?.id) {
-    form.contentId = contentResp.items[0].id;
-  }
-
-  if (form.contentId && versions.value.length === 0) {
-    await loadContentVersions(form.contentId);
-  }
-
-  if (!form.versionId) {
-    form.versionId = versions.value[0]?.id ?? "";
-  }
-
-  await refreshPreview();
+  form.channelAccountId = a[0]?.id ?? "";
+  form.themeCode = t[0]?.code ?? "";
   await refresh();
+  await updateComposerPreview();
 });
 
 onUnmounted(() => {
   stopPolling();
+  stopPreviewTimer();
 });
 </script>
 
 <style scoped>
-.draft-workbench {
-  align-items: start;
+.drafts-page {
+  min-height: 0;
+  gap: 18px;
+}
+
+.drafts-page > .page-scroll {
+  min-height: 0;
+}
+
+.drafts-page :deep(.n-grid) {
+  flex-shrink: 0;
+}
+
+.drafts-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 24px 26px;
+  border-radius: 24px;
+  border: 1px solid rgba(88, 65, 32, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(255, 216, 157, 0.25), transparent 30%),
+    linear-gradient(135deg, #1f2937 0%, #334155 48%, #7c5c2e 100%);
+  color: #f8fafc;
+}
+
+.drafts-hero__eyebrow {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.drafts-hero__title {
+  margin: 0;
+  font-size: 28px;
+}
+
+.drafts-hero__desc {
+  max-width: 700px;
+  margin: 10px 0 0;
+  line-height: 1.7;
+  color: rgba(248, 250, 252, 0.82);
+}
+
+.drafts-hero__chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 12px;
+  min-width: min(340px, 100%);
+}
+
+.hero-chip {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.hero-chip span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: rgba(248, 250, 252, 0.66);
+}
+
+.hero-chip strong {
+  font-size: 18px;
+}
+
+.panel-card {
+  border-radius: 22px;
+}
+
+.form-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fffdf7 0%, #f8f4ea 100%);
+}
+
+.form-summary__label,
+.preview-shell__label,
+.detail-preview__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #7c6b4c;
+}
+
+.preview-card {
+  min-height: 100%;
 }
 
 .preview-meta {
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: #f6f9ff;
-  border: 1px solid #dbe7ff;
-  color: #3257a1;
-  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
-.preview-box {
-  min-height: 320px;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
+.preview-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.preview-shell__toolbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e4dfd3;
+  border-radius: 18px;
+  background: #fffdf8;
+}
+
+.preview-frame {
+  max-height: 640px;
+  overflow: auto;
   padding: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid #dbe4ef;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 250, 252, 0.98)),
+    #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.draft-list-card {
+  margin-top: 18px;
+}
+
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.draft-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.action-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+}
+
+.action-icon svg,
+.action-icon :deep(svg) {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.detail-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .drafts-hero {
+    flex-direction: column;
+  }
+
+  .drafts-hero__chips,
+  .form-summary,
+  .preview-shell__toolbar {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

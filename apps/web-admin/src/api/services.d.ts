@@ -23,6 +23,8 @@ export type ContentVersionItem = {
     id: string;
     versionNo: number;
     title: string;
+    summary?: string;
+    markdownBody: string;
     createdAt: string;
 };
 export type ContentDetail = {
@@ -44,6 +46,12 @@ export type ThemeItem = {
     code: string;
     name: string;
     targetPlatform: string;
+};
+export type AiSettings = {
+    baseUrl: string;
+    apiKey: string;
+    apiKeyMasked: string;
+    model: string;
 };
 export type AccountItem = {
     id: string;
@@ -81,6 +89,9 @@ export type DraftDetail = {
         platformDraftId: string | null;
         previewUrl: string | null;
         errorMessage: string | null;
+        renderedHtml: string | null;
+        themeCode: string | null;
+        versionId: string | null;
     };
     retryable?: boolean;
     createdAt: string;
@@ -140,6 +151,11 @@ export declare function updateAccount(accountId: string, payload: {
     };
     meta?: Record<string, unknown>;
 }): Promise<AccountItem>;
+export declare function deleteAccount(accountId: string): Promise<{
+    id: string;
+    deleted: boolean;
+    name: string;
+}>;
 export declare function validateAccount(accountId: string): Promise<{
     valid: boolean;
     platform: string;
@@ -164,4 +180,20 @@ export declare function getDraftDetail(publishJobId: string): Promise<DraftDetai
 export declare function retryDraft(publishJobId: string): Promise<{
     publishJobId: string;
     status: string;
+}>;
+export declare function getAiSettings(): Promise<AiSettings>;
+export declare function updateAiSettings(payload: {
+    baseUrl: string;
+    apiKey?: string;
+    model: string;
+}): Promise<AiSettings>;
+export declare function testAiSettings(payload: {
+    baseUrl?: string;
+    apiKey?: string;
+    model?: string;
+}): Promise<{
+    success: boolean;
+    message: string;
+    model: string;
+    baseUrl: string;
 }>;

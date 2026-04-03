@@ -1,4 +1,4 @@
-﻿import { api, type ApiEnvelope } from "./client";
+import { api, type ApiEnvelope } from "./client";
 
 export type HealthData = { api: string; database: string; redis: string };
 
@@ -25,7 +25,7 @@ export type ContentVersionItem = {
   versionNo: number;
   title: string;
   summary?: string;
-  markdownBody?: string;
+  markdownBody: string;
   createdAt: string;
 };
 
@@ -46,6 +46,12 @@ export type ContentDetail = {
 };
 
 export type ThemeItem = { code: string; name: string; targetPlatform: string };
+export type AiSettings = {
+  baseUrl: string;
+  apiKey: string;
+  apiKeyMasked: string;
+  model: string;
+};
 
 export type AccountItem = {
   id: string;
@@ -82,6 +88,9 @@ export type DraftDetail = {
     platformDraftId: string | null;
     previewUrl: string | null;
     errorMessage: string | null;
+    renderedHtml: string | null;
+    themeCode: string | null;
+    versionId: string | null;
   };
   retryable?: boolean;
   createdAt: string;
@@ -181,6 +190,13 @@ export async function updateAccount(
   return data.data;
 }
 
+export async function deleteAccount(accountId: string) {
+  const { data } = await api.delete<ApiEnvelope<{ id: string; deleted: boolean; name: string }>>(
+    `/channel-accounts/${accountId}`,
+  );
+  return data.data;
+}
+
 export async function validateAccount(accountId: string) {
   const { data } = await api.post<ApiEnvelope<{ valid: boolean; platform: string; message: string }>>(
     `/channel-accounts/${accountId}/validate`,
@@ -216,6 +232,24 @@ export async function getDraftDetail(publishJobId: string) {
 export async function retryDraft(publishJobId: string) {
   const { data } = await api.post<ApiEnvelope<{ publishJobId: string; status: string }>>(
     `/drafts/${publishJobId}/retry`,
+  );
+  return data.data;
+}
+
+export async function getAiSettings() {
+  const { data } = await api.get<ApiEnvelope<AiSettings>>("/settings/ai");
+  return data.data;
+}
+
+export async function updateAiSettings(payload: { baseUrl: string; apiKey?: string; model: string }) {
+  const { data } = await api.put<ApiEnvelope<AiSettings>>("/settings/ai", payload);
+  return data.data;
+}
+
+export async function testAiSettings(payload: { baseUrl?: string; apiKey?: string; model?: string }) {
+  const { data } = await api.post<ApiEnvelope<{ success: boolean; message: string; model: string; baseUrl: string }>>(
+    "/settings/ai/test",
+    payload,
   );
   return data.data;
 }

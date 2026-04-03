@@ -77,11 +77,36 @@ function go(key: string) {
 
 const themeOverrides = {
   common: {
-    primaryColor: "#409eff",
-    primaryColorHover: "#3a8ee6",
-    borderRadius: "8px",
+    primaryColor: "#1f6feb",
+    primaryColorHover: "#195fd0",
+    primaryColorPressed: "#174ea6",
+    infoColor: "#1f6feb",
+    successColor: "#1f9d73",
+    warningColor: "#d97706",
+    errorColor: "#d9485f",
+    borderRadius: "16px",
     cardColor: "#FFFFFF",
-    bodyColor: "#F4F7FB",
+    bodyColor: "#F2F6FB",
   },
 };
 </script>
+
+<style scoped>
+.app-layout :deep(.n-layout-scroll-container) {
+  min-height: 100%;
+}
+
+.main-layout :deep(.n-layout-scroll-container) {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  min-height: 0;
+}
+
+.footer {
+  margin-top: auto;
+}
+</style>
