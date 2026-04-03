@@ -95,21 +95,19 @@ export class AiService {
     summary: string;
     markdownBody: string;
   }> {
-    const systemPrompt = `你是一个专业的内容创作者和编辑。你的任务是根据用户的灵感或想法，生成一篇高质量的微信公众号文章。
+    const systemPrompt = `你是一个专业的内容创作者和编辑。请根据用户给出的想法，生成一篇高质量的中文文章。
 
 要求：
-1. 文章结构完整：包含标题、引言、正文（分章节）、结语
-2. 使用 Markdown 格式
-3. 标题要吸引人，正文要有深度
-4. 语言风格：专业但不失亲和力
-5. 适当使用标题层级（## 和 ###）
-6. 可以使用列表、引用等 Markdown 语法增强可读性
+1. 文章结构完整，包含标题、引言、正文和总结。
+2. 使用 Markdown 格式。
+3. 标题要有吸引力，正文要有信息量。
+4. 风格专业但易读。
 
-请严格按照以下 JSON 格式返回，不要包含任何其他文字：
+请严格返回 JSON：
 {
   "title": "文章标题",
   "summary": "一句话摘要",
-  "markdownBody": "完整的 Markdown 正文"
+  "markdownBody": "完整 Markdown 正文"
 }`;
 
     const response = await this.chat([
@@ -127,7 +125,7 @@ export class AiService {
           markdownBody: parsed.markdownBody ?? response,
         };
       }
-    } catch (e) {
+    } catch {
       this.logger.warn("Failed to parse AI response as JSON");
     }
 
@@ -148,51 +146,68 @@ export class AiService {
     tags?: string[];
   }> {
     const prompts: Record<string, string> = {
-      XIAOHONGSHU: `你是一个小红书爆款文案专家。请将以下母稿改写成小红书风格的笔记。
+      XIAOHONGSHU: `你是一个小红书爆款文案专家。请将以下母稿改写成适合小红书发布的笔记。
 
-小红书风格要求：
-1. 标题：吸引眼球，使用 emoji，制造悬念或痛点共鸣，15-20 字
-2. 正文：
-   - 开头用痛点/悬念/共鸣吸引注意
-   - 多用 emoji（但不过度），每段 2-3 行
-   - 使用序号列表、分隔线等增强可读性
-   - 口语化、亲切感，像朋友分享
-   - 适当使用"姐妹们"、"真的绝了"、"按头安利"等网感词汇
-   - 结尾引导互动（点赞、收藏、评论）
-3. 标签：生成 5-8 个相关话题标签，用 # 开头
+要求：
+1. 标题抓人，可适当使用 emoji。
+2. 正文更口语化，更适合种草与经验分享。
+3. 多用短段落、小标题、列表，增强收藏意愿。
+4. 结尾加入互动引导。
+5. 输出 5-8 个小红书标签。
 
-请严格按照以下 JSON 格式返回，不要包含任何其他文字：
+请严格返回 JSON：
 {
-  "title": "小红书标题（带emoji）",
-  "markdownBody": "小红书风格正文（用 Markdown 格式）",
-  "tags": ["#标签1", "#标签2", "#标签3"]
+  "title": "小红书标题",
+  "markdownBody": "小红书正文 Markdown",
+  "tags": ["#标签1", "#标签2"]
 }
 
 源文章：
 标题：${sourceTitle}
 内容：${sourceMarkdown.substring(0, 3000)}`,
-      CSDN: `你是一个资深技术博主。请将以下母稿改写成 CSDN 风格的技术文章。
+      CSDN: `你是一个资深技术博主。请将以下母稿改写成适合 CSDN 发布的技术文章。
 
-CSDN 风格要求：
-1. 标题：专业、准确、包含关键词，便于搜索引擎优化
-2. 正文：
-   - 结构清晰：前言、环境/背景、核心内容（分步骤）、总结
-   - 使用代码块、表格、列表等技术文档常用元素
-   - 语言专业严谨，适合技术人员阅读
-   - 适当添加"踩坑记录"、"注意事项"、"扩展阅读"等板块
-   - 结尾可以引导关注、点赞、收藏
-3. 标签：生成 5-8 个技术相关标签
+要求：
+1. 标题专业、清晰、利于检索。
+2. 正文包含背景、问题、方案、步骤、总结。
+3. 风格偏技术说明文，可加入注意事项与踩坑总结。
+4. 输出 5-8 个技术标签。
 
-请严格按照以下 JSON 格式返回，不要包含任何其他文字：
+请严格返回 JSON：
 {
-  "title": "CSDN文章标题",
-  "markdownBody": "CSDN风格正文（用 Markdown 格式）",
-  "tags": ["标签1", "标签2", "标签3"]
+  "title": "CSDN 文章标题",
+  "markdownBody": "CSDN 正文 Markdown",
+  "tags": ["标签1", "标签2"]
 }
 
 源文章：
 标题：${sourceTitle}
 内容：${sourceMarkdown.substring(0, 3000)}`,
+      TOUTIAO: `你是一个今日头条内容运营专家。请将以下母稿改写成适合今日头条发布的文章。
+
+要求：
+1. 标题直接、有信息量，突出结果、冲突或收益。
+2. 开头先抛核心观点，中段分点展开，结尾做总结或提问。
+3. 风格偏信息流干货/评论式写法，减少公众号腔。
+4. 多用短段、短句、小标题，提升推荐流完读率。
+5. 输出 3-6 个适合头条推荐的话题标签。
+
+请严格返回 JSON：
+{
+  "title": "今日头条标题",
+  "markdownBody": "今日头条正文 Markdown",
+  "tags": ["标签1", "标签2"]
+}
+
+源文章：
+标题：${sourceTitle}
+内容：${sourceMarkdown.substring(0, 3000)}`,
+    };
+
+    const platformLabelMap: Record<string, string> = {
+      XIAOHONGSHU: "小红书",
+      CSDN: "CSDN",
+      TOUTIAO: "今日头条",
     };
 
     const systemPrompt = prompts[platform];
@@ -202,7 +217,7 @@ CSDN 风格要求：
 
     const response = await this.chat([
       { role: "system", content: systemPrompt },
-      { role: "user", content: `请将以下文章改写成${platform === "XIAOHONGSHU" ? "小红书" : "CSDN"}风格` },
+      { role: "user", content: `请将以下文章改写成${platformLabelMap[platform] ?? platform}风格` },
     ]);
 
     try {
@@ -215,7 +230,7 @@ CSDN 风格要求：
           tags: parsed.tags ?? [],
         };
       }
-    } catch (e) {
+    } catch {
       this.logger.warn("Failed to parse variant response as JSON");
     }
 

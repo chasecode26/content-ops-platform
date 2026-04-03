@@ -53,7 +53,9 @@ export class DraftsService {
     if (account.platform !== dto.platform) {
       throw new NotFoundException("UNSUPPORTED_CAPABILITY");
     }
-    if (theme.targetPlatform !== dto.platform) {
+    const allowCrossPlatformTheme =
+      dto.platform === "TOUTIAO" && theme.targetPlatform === "WECHAT_OFFICIAL";
+    if (theme.targetPlatform !== dto.platform && !allowCrossPlatformTheme) {
       throw new NotFoundException("THEME_PLATFORM_MISMATCH");
     }
 
@@ -195,19 +197,23 @@ export class DraftsService {
       !Array.isArray(draftRecord.platformPayload)
         ? (draftRecord.platformPayload as Record<string, unknown>)
         : null;
+    const retryPlatform =
+      payload && (payload.platform === "WECHAT_OFFICIAL" || payload.platform === "TOUTIAO")
+        ? payload.platform
+        : null;
     const retryDto: CreateDraftDto | null =
       payload &&
       typeof payload.contentId === "string" &&
       typeof payload.versionId === "string" &&
       typeof payload.channelAccountId === "string" &&
       typeof payload.themeCode === "string" &&
-      payload.platform === "WECHAT_OFFICIAL"
+      retryPlatform
         ? {
             contentId: payload.contentId,
             versionId: payload.versionId,
             channelAccountId: payload.channelAccountId,
             themeCode: payload.themeCode,
-            platform: "WECHAT_OFFICIAL",
+            platform: retryPlatform,
           }
         : null;
 

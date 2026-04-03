@@ -1,6 +1,6 @@
 export interface DraftPublishInput {
   publishJobId: string;
-  platform: "WECHAT_OFFICIAL";
+  platform: "WECHAT_OFFICIAL" | "TOUTIAO";
   contentId: string;
   versionId: string;
   channelAccountId: string;

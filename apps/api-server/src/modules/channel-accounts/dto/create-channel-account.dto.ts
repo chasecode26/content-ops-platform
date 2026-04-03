@@ -1,6 +1,6 @@
 import { IsIn, IsObject, IsOptional, IsString, Length } from "class-validator";
 
-const ALLOWED_PLATFORM = ["WECHAT_OFFICIAL"] as const;
+const ALLOWED_PLATFORM = ["WECHAT_OFFICIAL", "TOUTIAO"] as const;
 
 export class CreateChannelAccountDto {
   @IsIn(ALLOWED_PLATFORM)

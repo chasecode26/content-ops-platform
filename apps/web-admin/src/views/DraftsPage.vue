@@ -5,7 +5,7 @@
         <div>
           <p class="drafts-hero__eyebrow">Draft Delivery Console</p>
           <h1 class="drafts-hero__title">草稿箱投递工作台</h1>
-          <p class="drafts-hero__desc">左侧配置，右侧即时预览，下方追踪任务。选内容与风格时，不再盲投。</p>
+          <p class="drafts-hero__desc">按平台选择账号、主题与版本，右侧直接预览成稿效果，底部追踪投递任务。</p>
         </div>
         <div class="drafts-hero__chips">
           <div class="hero-chip">
@@ -13,8 +13,8 @@
             <strong>{{ total }}</strong>
           </div>
           <div class="hero-chip">
-            <span>预览状态</span>
-            <strong>{{ previewLoading ? "渲染中" : previewError ? "失败" : previewHtml ? "就绪" : "待选择" }}</strong>
+            <span>当前平台</span>
+            <strong>{{ platformLabelMap[form.platform] }}</strong>
           </div>
         </div>
       </section>
@@ -35,6 +35,9 @@
               </div>
 
               <n-form label-placement="top">
+                <n-form-item label="平台">
+                  <n-select v-model:value="form.platform" :options="platformOptions" @update:value="onPlatformChange" />
+                </n-form-item>
                 <n-form-item label="内容">
                   <n-select v-model:value="form.contentId" :options="contentOptions" @update:value="onContentChange" />
                 </n-form-item>
@@ -42,12 +45,12 @@
                   <n-select v-model:value="form.versionId" :options="versionOptions" placeholder="选择版本" />
                 </n-form-item>
                 <n-form-item label="账号">
-                  <n-select v-model:value="form.channelAccountId" :options="accountOptions" />
+                  <n-select v-model:value="form.channelAccountId" :options="accountOptions" placeholder="选择账号" />
                 </n-form-item>
                 <n-form-item label="主题">
-                  <n-select v-model:value="form.themeCode" :options="themeOptions" />
+                  <n-select v-model:value="form.themeCode" :options="themeOptions" placeholder="选择主题" />
                 </n-form-item>
-                <n-button type="primary" block @click="submit">推送草稿</n-button>
+                <n-button type="primary" block @click="submit">投递草稿</n-button>
               </n-form>
             </n-space>
           </n-card>
@@ -57,6 +60,7 @@
           <n-card class="page-card panel-card preview-card" title="右侧预览">
             <div class="preview-meta">
               <n-tag size="small" type="info">{{ form.versionId ? selectedVersionLabel : "未选择版本" }}</n-tag>
+              <n-tag size="small" type="warning">{{ platformLabelMap[form.platform] }}</n-tag>
               <n-tag size="small" :type="previewError ? 'error' : previewHtml ? 'success' : 'default'">
                 {{ previewLoading ? "生成中" : previewError ? "预览失败" : previewHtml ? "可投递" : "待选择" }}
               </n-tag>
@@ -76,7 +80,7 @@
 
               <n-empty
                 v-else-if="!previewHtml"
-                description="选择内容、版本和主题后，这里会直接显示微信 HTML 预览。"
+                description="选择内容、版本、平台与主题后，这里会直接显示成稿预览。"
               />
 
               <div v-else class="preview-shell">
@@ -86,8 +90,8 @@
                     <strong>{{ selectedContentTitle }}</strong>
                   </div>
                   <div>
-                    <span class="preview-shell__label">目标风格</span>
-                    <strong>{{ selectedThemeName }}</strong>
+                    <span class="preview-shell__label">目标平台</span>
+                    <strong>{{ platformLabelMap[form.platform] }}</strong>
                   </div>
                 </div>
                 <div class="preview-frame" v-html="previewHtml"></div>
@@ -137,11 +141,11 @@
         <n-drawer-content title="任务详情">
           <n-space vertical :size="16">
             <n-descriptions :column="1" bordered label-placement="left">
-              <n-descriptions-item label="任务ID">{{ detail?.publishJobId ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="任务 ID">{{ detail?.publishJobId ?? "-" }}</n-descriptions-item>
               <n-descriptions-item label="状态">{{ detail?.status ?? "-" }}</n-descriptions-item>
               <n-descriptions-item label="内容">{{ detail?.content.title ?? "-" }}</n-descriptions-item>
               <n-descriptions-item label="主题">{{ detail?.draftRecord.themeCode ?? "-" }}</n-descriptions-item>
-              <n-descriptions-item label="平台草稿ID">{{ detail?.draftRecord.platformDraftId ?? "-" }}</n-descriptions-item>
+              <n-descriptions-item label="平台草稿 ID">{{ detail?.draftRecord.platformDraftId ?? "-" }}</n-descriptions-item>
               <n-descriptions-item label="错误信息">{{ detail?.draftRecord.errorMessage ?? "-" }}</n-descriptions-item>
               <n-descriptions-item label="创建时间">{{ detail?.createdAt ?? "-" }}</n-descriptions-item>
             </n-descriptions>
@@ -200,11 +204,23 @@ const detail = ref<DraftDetail | null>(null);
 const previewHtml = ref("");
 const previewError = ref("");
 const previewLoading = ref(false);
+
+const platformOptions = [
+  { label: "微信公众号", value: "WECHAT_OFFICIAL" },
+  { label: "今日头条", value: "TOUTIAO" },
+];
+
+const platformLabelMap: Record<string, string> = {
+  WECHAT_OFFICIAL: "微信公众号",
+  TOUTIAO: "今日头条",
+};
+
 let pollTimer: ReturnType<typeof setTimeout> | null = null;
 let previewTimer: ReturnType<typeof setTimeout> | null = null;
 let previewTaskId = 0;
 
 const form = reactive({
+  platform: "WECHAT_OFFICIAL",
   contentId: "",
   versionId: "",
   channelAccountId: "",
@@ -224,12 +240,12 @@ const statusOptions = [
   { label: "PENDING", value: "PENDING" },
 ];
 
-const contentOptions = computed(() => contents.value.map((i) => ({ label: i.title, value: i.id })));
+const contentOptions = computed(() => contents.value.map((item) => ({ label: item.title, value: item.id })));
 const versionOptions = computed(() =>
-  versions.value.map((v) => ({ label: `v${v.versionNo} · ${v.title}`, value: v.id })),
+  versions.value.map((item) => ({ label: `v${item.versionNo} · ${item.title}`, value: item.id })),
 );
-const accountOptions = computed(() => accounts.value.map((i) => ({ label: i.name, value: i.id })));
-const themeOptions = computed(() => themes.value.map((i) => ({ label: i.name, value: i.code })));
+const accountOptions = computed(() => accounts.value.map((item) => ({ label: item.name, value: item.id })));
+const themeOptions = computed(() => themes.value.map((item) => ({ label: item.name, value: item.code })));
 
 const selectedContentTitle = computed(
   () => contents.value.find((item) => item.id === form.contentId)?.title ?? "未选择内容",
@@ -241,6 +257,26 @@ const selectedVersionLabel = computed(() => {
   const matched = versions.value.find((item) => item.id === form.versionId);
   return matched ? `v${matched.versionNo} · ${matched.title}` : "未选择版本";
 });
+
+async function loadAccountsAndThemes() {
+  const [accountList, themeList] = await Promise.all([
+    listAccounts(form.platform),
+    listThemes(form.platform === "TOUTIAO" ? "WECHAT_OFFICIAL" : form.platform),
+  ]);
+  accounts.value = accountList;
+  themes.value = themeList;
+  if (!accountList.some((item) => item.id === form.channelAccountId)) {
+    form.channelAccountId = accountList[0]?.id ?? "";
+  }
+  if (!themeList.some((item) => item.code === form.themeCode)) {
+    form.themeCode = themeList[0]?.code ?? "";
+  }
+}
+
+async function onPlatformChange() {
+  await loadAccountsAndThemes();
+  scheduleComposerPreview();
+}
 
 async function onContentChange() {
   form.versionId = "";
@@ -318,7 +354,7 @@ async function updateComposerPreview() {
   try {
     const html = await renderPreview({
       themeCode: form.themeCode,
-      platform: "WECHAT_OFFICIAL",
+      platform: form.platform,
       markdownBody: version.markdownBody,
       title: version.title,
     });
@@ -370,7 +406,7 @@ async function submit() {
     versionId: form.versionId,
     channelAccountId: form.channelAccountId,
     themeCode: form.themeCode,
-    platform: "WECHAT_OFFICIAL",
+    platform: form.platform,
   });
   message.success(`已创建任务 ${result.publishJobId}`);
   await refresh();
@@ -399,6 +435,12 @@ async function retryFromDetail() {
 
 const columns = [
   { title: "标题", key: "contentTitle" },
+  {
+    title: "平台",
+    key: "platform",
+    width: 120,
+    render: (row: DraftJobItem) => platformLabelMap[row.platform] ?? row.platform,
+  },
   { title: "账号", key: "channelAccountName", width: 160 },
   {
     title: "状态",
@@ -422,12 +464,7 @@ const columns = [
           trigger: () =>
             h(
               NButton,
-              {
-                size: "small",
-                tertiary: true,
-                circle: true,
-                onClick: () => void openDetail(row.publishJobId),
-              },
+              { size: "small", tertiary: true, circle: true, onClick: () => void openDetail(row.publishJobId) },
               { default: () => renderPathIcon(appIconPaths.detail) },
             ),
           default: () => "任务详情",
@@ -456,22 +493,19 @@ const columns = [
 ];
 
 watch(
-  () => [form.contentId, form.versionId, form.themeCode],
+  () => [form.contentId, form.versionId, form.themeCode, form.platform],
   () => {
     scheduleComposerPreview();
   },
 );
 
 onMounted(async () => {
-  const [c, a, t] = await Promise.all([listContents({ page: 1, pageSize: 100 }), listAccounts(), listThemes()]);
-  contents.value = c.items;
-  accounts.value = a;
-  themes.value = t;
-  form.contentId = c.items[0]?.id ?? "";
+  const contentResp = await listContents({ page: 1, pageSize: 100 });
+  contents.value = contentResp.items;
+  form.contentId = contentResp.items[0]?.id ?? "";
   await onContentChange();
   await applyRoutePreset();
-  form.channelAccountId = a[0]?.id ?? "";
-  form.themeCode = t[0]?.code ?? "";
+  await loadAccountsAndThemes();
   await refresh();
   await updateComposerPreview();
 });

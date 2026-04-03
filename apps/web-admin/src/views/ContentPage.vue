@@ -236,6 +236,7 @@ const previewThemeHtml = ref("");
 const platformOptions = [
   { label: "📕 小红书", value: "XIAOHONGSHU" },
   { label: "💻 CSDN", value: "CSDN" },
+  { label: "今日头条", value: "TOUTIAO" },
 ];
 
 const query = reactive({

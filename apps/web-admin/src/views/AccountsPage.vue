@@ -3,31 +3,41 @@
     <div class="page-scroll">
       <n-grid class="accounts-grid" :x-gap="16" :y-gap="16" cols="1 l:2" responsive="screen">
         <n-gi>
-          <n-card class="page-card panel-card" title="新增公众号账号">
+          <n-card class="page-card panel-card" title="新增渠道账号">
             <n-form label-placement="top">
+              <n-form-item label="平台">
+                <n-select v-model:value="createForm.platform" :options="platformOptions" />
+              </n-form-item>
               <n-form-item label="账号名称">
                 <n-input v-model:value="createForm.name" />
               </n-form-item>
-              <n-form-item label="appId">
+              <n-form-item label="appId / Client Id">
                 <n-input v-model:value="createForm.appId" />
               </n-form-item>
-              <n-form-item label="appSecret">
+              <n-form-item label="appSecret / Client Secret">
                 <n-input v-model:value="createForm.appSecret" type="password" show-password-on="click" />
               </n-form-item>
               <n-form-item label="作者名">
                 <n-input v-model:value="createForm.author" />
               </n-form-item>
-              <n-form-item label="thumb_media_id">
-                <n-input v-model:value="createForm.defaultThumbMediaId" placeholder="可选，不填则自动上传兜底图" />
+              <n-form-item label="封面素材 ID">
+                <n-input v-model:value="createForm.defaultThumbMediaId" placeholder="可选" />
               </n-form-item>
               <n-button type="primary" @click="submitCreate">保存账号</n-button>
             </n-form>
           </n-card>
         </n-gi>
+
         <n-gi>
-          <n-card class="page-card panel-card" title="账号列表（密文存储 / 脱敏展示）">
+          <n-card class="page-card panel-card" title="账号列表">
             <n-space vertical>
               <n-space>
+                <n-select
+                  v-model:value="activePlatform"
+                  :options="platformOptions"
+                  style="width: 180px"
+                  @update:value="refresh"
+                />
                 <n-tooltip trigger="hover">
                   <template #trigger>
                     <n-button circle secondary @click="refresh">
@@ -55,14 +65,14 @@
           <n-form-item label="作者名">
             <n-input v-model:value="editForm.author" />
           </n-form-item>
-          <n-form-item label="thumb_media_id">
+          <n-form-item label="封面素材 ID">
             <n-input v-model:value="editForm.defaultThumbMediaId" />
           </n-form-item>
-          <n-divider>如需更新密钥，填写下方字段（留空则保持原值）</n-divider>
-          <n-form-item label="新 appId">
+          <n-divider>如需更新密钥，填写下方字段；留空则保持原值</n-divider>
+          <n-form-item label="新 appId / Client Id">
             <n-input v-model:value="editForm.appId" />
           </n-form-item>
-          <n-form-item label="新 appSecret">
+          <n-form-item label="新 appSecret / Client Secret">
             <n-input v-model:value="editForm.appSecret" type="password" show-password-on="click" />
           </n-form-item>
           <n-space justify="end">
@@ -90,7 +100,20 @@ import { appIconPaths, renderPathIcon } from "../utils/icons";
 
 const message = useMessage();
 const accounts = ref<AccountItem[]>([]);
+const activePlatform = ref("WECHAT_OFFICIAL");
+
+const platformOptions = [
+  { label: "微信公众号", value: "WECHAT_OFFICIAL" },
+  { label: "今日头条", value: "TOUTIAO" },
+];
+
+const platformLabelMap: Record<string, string> = {
+  WECHAT_OFFICIAL: "微信公众号",
+  TOUTIAO: "今日头条",
+};
+
 const createForm = reactive({
+  platform: "WECHAT_OFFICIAL",
   name: "",
   appId: "",
   appSecret: "",
@@ -109,7 +132,7 @@ const editForm = reactive({
 });
 
 async function refresh() {
-  accounts.value = await listAccounts();
+  accounts.value = await listAccounts(activePlatform.value);
 }
 
 async function submitCreate() {
@@ -117,8 +140,9 @@ async function submitCreate() {
     message.warning("请填写完整账号信息");
     return;
   }
+
   await createAccount({
-    platform: "WECHAT_OFFICIAL",
+    platform: createForm.platform,
     name: createForm.name,
     credentials: {
       appId: createForm.appId,
@@ -129,7 +153,9 @@ async function submitCreate() {
       ...(createForm.defaultThumbMediaId ? { defaultThumbMediaId: createForm.defaultThumbMediaId } : {}),
     },
   });
+
   message.success("账号已保存");
+  createForm.platform = activePlatform.value;
   createForm.name = "";
   createForm.appId = "";
   createForm.appSecret = "";
@@ -150,6 +176,7 @@ function openEdit(row: AccountItem) {
 
 async function submitEdit() {
   if (!editingId.value) return;
+
   const payload: {
     name?: string;
     meta?: Record<string, unknown>;
@@ -164,7 +191,7 @@ async function submitEdit() {
 
   if (editForm.appId || editForm.appSecret) {
     if (!editForm.appId || !editForm.appSecret) {
-      message.warning("更新密钥时 appId 与 appSecret 需同时填写");
+      message.warning("更新密钥时 appId 和 appSecret 需同时填写");
       return;
     }
     payload.credentials = {
@@ -172,6 +199,7 @@ async function submitEdit() {
       appSecret: editForm.appSecret,
     };
   }
+
   await updateAccount(editingId.value, payload);
   message.success("账号已更新");
   showEdit.value = false;
@@ -181,7 +209,7 @@ async function submitEdit() {
 async function runValidate(accountId: string) {
   const result = await validateAccount(accountId);
   if (result.valid) {
-    message.success("账号校验通过");
+    message.success(`${platformLabelMap[result.platform] ?? result.platform} 账号校验通过`);
   } else {
     message.error("账号校验失败");
   }
@@ -195,6 +223,12 @@ async function removeOne(accountId: string) {
 
 const columns = [
   { title: "名称", key: "name" },
+  {
+    title: "平台",
+    key: "platform",
+    width: 120,
+    render: (row: AccountItem) => platformLabelMap[row.platform] ?? row.platform,
+  },
   {
     title: "作者",
     key: "author",
@@ -214,7 +248,9 @@ const columns = [
     title: "凭证",
     key: "configured",
     render: (row: AccountItem) =>
-      h(NTag, { type: row.credential?.configured ? "success" : "warning" }, { default: () => (row.credential?.configured ? "已配置" : "未配置") }),
+      h(NTag, { type: row.credential?.configured ? "success" : "warning" }, {
+        default: () => (row.credential?.configured ? "已配置" : "未配置"),
+      }),
   },
   {
     title: "操作",
@@ -253,7 +289,10 @@ const columns = [
   },
 ];
 
-onMounted(refresh);
+onMounted(async () => {
+  createForm.platform = activePlatform.value;
+  await refresh();
+});
 </script>
 
 <style scoped>

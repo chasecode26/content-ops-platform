@@ -18,7 +18,22 @@ import { DraftsService } from "./drafts.service";
       provide: DRAFT_PUBLISHER_ADAPTER,
       useFactory: (fakeAdapter: FakeWechatDraftAdapter, apiAdapter: WechatApiDraftAdapter) => {
         const mode = (process.env.WECHAT_DRAFT_ADAPTER ?? "fake").trim().toLowerCase();
-        return mode === "api" ? apiAdapter : fakeAdapter;
+        return {
+          supports(platform: string) {
+            return platform === "TOUTIAO"
+              ? fakeAdapter.supports(platform)
+              : mode === "api"
+                ? apiAdapter.supports(platform)
+                : fakeAdapter.supports(platform);
+          },
+          createDraft(input: Parameters<FakeWechatDraftAdapter["createDraft"]>[0]) {
+            return input.platform === "TOUTIAO"
+              ? fakeAdapter.createDraft(input)
+              : mode === "api"
+                ? apiAdapter.createDraft(input)
+                : fakeAdapter.createDraft(input);
+          },
+        };
       },
       inject: [FakeWechatDraftAdapter, WechatApiDraftAdapter],
     },
