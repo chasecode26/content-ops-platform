@@ -6,6 +6,7 @@ coverage/
 .env.local
 playwright/.auth/
 tmp/
+.tmp-*
 uploads/
 generated/
 .DS_Store
