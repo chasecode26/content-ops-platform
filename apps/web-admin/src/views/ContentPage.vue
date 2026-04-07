@@ -144,16 +144,16 @@
           </div>
 
           <n-tabs v-if="variantResult" type="line" animated>
-            <n-tab-pane name="preview" tab="预览">
+            <n-tab-pane name="preview" tab="Preview">
               <div class="variant-preview-box">
                 <h3>{{ variantResult.title }}</h3>
                 <div v-if="variantResult.tags?.length" class="variant-tags">
                   <n-tag v-for="tag in variantResult.tags" :key="tag" size="small" type="info">{{ tag }}</n-tag>
                 </div>
-                <div class="variant-markdown" v-html="formatMarkdown(variantResult.markdownBody)"></div>
+                <div class="variant-markdown" v-html="variantPreviewHtml"></div>
               </div>
             </n-tab-pane>
-            <n-tab-pane name="raw" tab="原始 Markdown">
+            <n-tab-pane name="raw" tab="Source">
               <n-input
                 v-model:value="variantResult.markdownBody"
                 type="textarea"
@@ -163,9 +163,13 @@
             </n-tab-pane>
           </n-tabs>
 
-          <n-space v-if="variantResult" justify="end">
-            <n-button secondary @click="copyVariantText">复制文本</n-button>
-            <n-button type="primary" @click="saveVariantAsContent">保存为新母稿</n-button>
+          <n-space v-if="variantResult" justify="end" class="variant-actions">
+            <n-button secondary @click="copyVariantTitle">Copy Title</n-button>
+            <n-button secondary @click="copyVariantTags">Copy Tags</n-button>
+            <n-button secondary @click="copyVariantText">Copy Markdown</n-button>
+            <n-button secondary @click="downloadVariantMarkdown">Download .md</n-button>
+            <n-button type="primary" @click="saveVariantAsContent">Import as Content</n-button>
+            <n-button type="primary" ghost @click="saveVariantAndGoDrafts">Import & Go Drafts</n-button>
           </n-space>
         </n-space>
       </n-modal>
@@ -232,6 +236,9 @@ const variantResult = ref<{ title: string; markdownBody: string; tags?: string[]
 const themeItems = ref<ThemeItem[]>([]);
 const previewThemeCode = ref("");
 const previewThemeHtml = ref("");
+const variantPreviewHtml = computed(() =>
+  variantResult.value ? formatMarkdown(variantResult.value.markdownBody) : "",
+);
 
 const platformOptions = [
   { label: "📕 小红书", value: "XIAOHONGSHU" },
@@ -525,11 +532,45 @@ async function doGenerateVariant() {
   }
 }
 
+async function copyVariantTitle() {
+  if (!variantResult.value) return;
+  await navigator.clipboard.writeText(variantResult.value.title);
+  message.success("Title copied");
+}
+
+async function copyVariantTags() {
+  if (!variantResult.value) return;
+  const tags = variantResult.value.tags ?? [];
+  if (tags.length === 0) {
+    message.warning("No tags in current variant");
+    return;
+  }
+  await navigator.clipboard.writeText(tags.join(" "));
+  message.success("Tags copied");
+}
+
 async function copyVariantText() {
   if (!variantResult.value) return;
-  const text = `# ${variantResult.value.title}\n\n${variantResult.value.markdownBody}`;
-  await navigator.clipboard.writeText(text);
-  message.success("已复制到剪贴板");
+  await navigator.clipboard.writeText(buildVariantMarkdownText(variantResult.value));
+  message.success("Markdown copied");
+}
+
+function downloadVariantMarkdown() {
+  if (!variantResult.value) return;
+
+  const filename = `${slugifyFilename(variantResult.value.title)}-${variantPlatform.value.toLowerCase()}.md`;
+  const blob = new Blob([buildVariantMarkdownText(variantResult.value)], {
+    type: "text/markdown;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  message.success("Markdown downloaded");
 }
 
 async function saveVariantAsContent() {
@@ -537,29 +578,203 @@ async function saveVariantAsContent() {
   try {
     const res = await importMarkdown({
       title: variantResult.value.title,
-      summary: `${variantPlatform.value} 变体`,
+      summary: `${variantPlatform.value} variant`,
       markdownBody: variantResult.value.markdownBody,
       tags: variantResult.value.tags,
     });
-    message.success("已保存为新母稿");
+    message.success("Imported as new content");
     openVariant.value = false;
     await refresh();
     await loadDetail(res.contentId);
   } catch (err: any) {
-    message.error("保存失败：" + (err.message || "未知错误"));
+    message.error("Import failed: " + (err.message || "Unknown error"));
   }
 }
 
+async function saveVariantAndGoDrafts() {
+  if (!variantResult.value) return;
+  try {
+    const res = await importMarkdown({
+      title: variantResult.value.title,
+      summary: `${variantPlatform.value} variant`,
+      markdownBody: variantResult.value.markdownBody,
+      tags: variantResult.value.tags,
+    });
+
+    message.success("Imported and redirected to drafts");
+    openVariant.value = false;
+    await refresh();
+    await router.push({
+      path: "/drafts",
+      query: {
+        contentId: res.contentId,
+        versionId: res.versionId,
+      },
+    });
+  } catch (err: any) {
+    message.error("Import failed: " + (err.message || "Unknown error"));
+  }
+}
+
+function buildVariantMarkdownText(payload: { title: string; markdownBody: string; tags?: string[] }) {
+  const tags = payload.tags?.length ? `\n\n## Tags\n\n${payload.tags.join(" ")}` : "";
+  return `# ${payload.title}\n\n${payload.markdownBody}${tags}\n`;
+}
+
+function slugifyFilename(input: string) {
+  return (
+    input
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "variant"
+  );
+}
+
 function formatMarkdown(text: string) {
-  return text
-    .replace(/^### (.+)$/gm, "<h4>$1</h4>")
-    .replace(/^## (.+)$/gm, "<h3>$1</h3>")
-    .replace(/^# (.+)$/gm, "<h2>$1</h2>")
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/^\- (.+)$/gm, "<li>$1</li>")
-    .replace(/\n/g, "<br>");
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const blocks: string[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const raw = lines[i] ?? "";
+    const line = raw.trim();
+
+    if (!line) {
+      i += 1;
+      continue;
+    }
+
+    if (line.startsWith("```")) {
+      const codeLines: string[] = [];
+      i += 1;
+      while (i < lines.length && !(lines[i] ?? "").trim().startsWith("```")) {
+        codeLines.push(lines[i] ?? "");
+        i += 1;
+      }
+      i += 1;
+      blocks.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      const level = Math.min(headingMatch[1].length, 6);
+      blocks.push(`<h${level}>${renderInline(headingMatch[2])}</h${level}>`);
+      i += 1;
+      continue;
+    }
+
+    if (/^>\s?/.test(line)) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && /^>\s?/.test((lines[i] ?? "").trim())) {
+        quoteLines.push((lines[i] ?? "").trim().replace(/^>\s?/, ""));
+        i += 1;
+      }
+      blocks.push(`<blockquote>${quoteLines.map(renderInline).join("<br/>")}</blockquote>`);
+      continue;
+    }
+
+    if (/^[-*+]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*+]\s+/.test((lines[i] ?? "").trim())) {
+        items.push((lines[i] ?? "").trim().replace(/^[-*+]\s+/, ""));
+        i += 1;
+      }
+      blocks.push(`<ul>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ul>`);
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test((lines[i] ?? "").trim())) {
+        items.push((lines[i] ?? "").trim().replace(/^\d+\.\s+/, ""));
+        i += 1;
+      }
+      blocks.push(`<ol>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ol>`);
+      continue;
+    }
+
+    if (/^(\*\s*\*\s*\*|-{3,}|_{3,})$/.test(line)) {
+      blocks.push("<hr/>");
+      i += 1;
+      continue;
+    }
+
+    if (/^\|.+\|$/.test(line)) {
+      const tableLines: string[] = [];
+      while (i < lines.length && /^\|.+\|$/.test((lines[i] ?? "").trim())) {
+        tableLines.push((lines[i] ?? "").trim());
+        i += 1;
+      }
+      blocks.push(renderMarkdownTable(tableLines));
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+    while (i < lines.length) {
+      const nextLine = (lines[i] ?? "").trim();
+      if (!nextLine || isMarkdownBlockStart(nextLine)) {
+        break;
+      }
+      paragraphLines.push(nextLine);
+      i += 1;
+    }
+    blocks.push(`<p>${paragraphLines.map(renderInline).join("<br/>")}</p>`);
+  }
+
+  return blocks.join("");
+}
+
+function renderMarkdownTable(lines: string[]) {
+  const rows = lines
+    .filter((line) => !/^\|\s*[-:| ]+\|$/.test(line))
+    .map((line) => line.replace(/^\||\|$/g, "").split("|").map((item) => item.trim()));
+
+  if (rows.length === 0) {
+    return "";
+  }
+
+  const [head, ...body] = rows;
+  return [
+    '<div class="variant-table-wrap">',
+    "<table>",
+    `<thead><tr>${head.map((cell) => `<th>${renderInline(cell)}</th>`).join("")}</tr></thead>`,
+    `<tbody>${body.map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell)}</td>`).join("")}</tr>`).join("")}</tbody>`,
+    "</table>",
+    "</div>",
+  ].join("");
+}
+
+function isMarkdownBlockStart(line: string) {
+  return (
+    line.startsWith("```") ||
+    /^(#{1,6})\s+/.test(line) ||
+    /^>\s?/.test(line) ||
+    /^[-*+]\s+/.test(line) ||
+    /^\d+\.\s+/.test(line) ||
+    /^(\*\s*\*\s*\*|-{3,}|_{3,})$/.test(line) ||
+    /^\|.+\|$/.test(line)
+  );
+}
+
+function renderInline(input: string) {
+  let result = escapeHtml(input);
+  result = result.replace(/`([^`]+)`/g, "<code>$1</code>");
+  result = result.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  result = result.replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+  result = result.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  return result;
+}
+
+function escapeHtml(input: string) {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 onMounted(async () => {
@@ -740,6 +955,12 @@ onMounted(async () => {
   gap: 12px;
 }
 
+.variant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .variant-preview-box {
   padding: 18px;
   background: linear-gradient(180deg, #fcfdff 0%, #f4f8fc 100%);
@@ -768,11 +989,47 @@ onMounted(async () => {
   color: #475569;
 }
 
+.variant-markdown :deep(h1),
 .variant-markdown :deep(h2),
 .variant-markdown :deep(h3),
-.variant-markdown :deep(h4) {
-  margin: 16px 0 8px;
+.variant-markdown :deep(h4),
+.variant-markdown :deep(h5),
+.variant-markdown :deep(h6) {
+  margin: 18px 0 10px;
+  line-height: 1.45;
   color: #0f172a;
+}
+
+.variant-markdown :deep(p) {
+  margin: 10px 0;
+}
+
+.variant-markdown :deep(a) {
+  color: #0f62fe;
+  text-decoration: none;
+}
+
+.variant-markdown :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.variant-markdown :deep(ul),
+.variant-markdown :deep(ol) {
+  margin: 10px 0 10px 20px;
+  padding: 0;
+}
+
+.variant-markdown :deep(li) {
+  margin: 6px 0;
+}
+
+.variant-markdown :deep(blockquote) {
+  margin: 14px 0;
+  padding: 10px 14px;
+  border-left: 4px solid #7aa8ff;
+  border-radius: 8px;
+  background: #edf4ff;
+  color: #334155;
 }
 
 .variant-markdown :deep(code) {
@@ -780,6 +1037,49 @@ onMounted(async () => {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
+}
+
+.variant-markdown :deep(pre) {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow: auto;
+}
+
+.variant-markdown :deep(pre code) {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.variant-markdown :deep(.variant-table-wrap) {
+  margin: 14px 0;
+  overflow: auto;
+}
+
+.variant-markdown :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.variant-markdown :deep(th),
+.variant-markdown :deep(td) {
+  border: 1px solid #dbe4ef;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.variant-markdown :deep(th) {
+  background: #eef5ff;
+}
+
+.variant-markdown :deep(hr) {
+  border: none;
+  border-top: 1px solid #dbe4ef;
+  margin: 18px 0;
 }
 
 @media (max-width: 1100px) {
